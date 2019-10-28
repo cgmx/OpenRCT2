@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -120,7 +120,7 @@ static rct_window_event_list window_ride_refurbish_events = {
 };
 
 /** Based off of rct2: 0x006B486A */
-rct_window* window_ride_demolish_prompt_open(ride_id_t rideIndex)
+rct_window* window_ride_demolish_prompt_open(Ride* ride)
 {
     rct_window* w;
 
@@ -130,7 +130,7 @@ rct_window* window_ride_demolish_prompt_open(ride_id_t rideIndex)
         int x = w->x;
         int y = w->y;
         window_close(w);
-        w = window_create(x, y, WW, WH, &window_ride_demolish_events, WC_DEMOLISH_RIDE_PROMPT, WF_TRANSPARENT);
+        w = window_create(ScreenCoordsXY(x, y), WW, WH, &window_ride_demolish_events, WC_DEMOLISH_RIDE_PROMPT, WF_TRANSPARENT);
     }
     else
     {
@@ -140,13 +140,13 @@ rct_window* window_ride_demolish_prompt_open(ride_id_t rideIndex)
     w->widgets = window_ride_demolish_widgets;
     w->enabled_widgets = (1 << WIDX_CLOSE) | (1 << WIDX_CANCEL) | (1 << WIDX_DEMOLISH);
     window_init_scroll_widgets(w);
-    w->number = rideIndex;
-    _demolishRideCost = -ride_get_refund_price(rideIndex);
+    w->number = ride->id;
+    _demolishRideCost = -ride_get_refund_price(ride);
 
     return w;
 }
 
-rct_window* window_ride_refurbish_prompt_open(ride_id_t rideIndex)
+rct_window* window_ride_refurbish_prompt_open(Ride* ride)
 {
     rct_window* w;
 
@@ -156,7 +156,7 @@ rct_window* window_ride_refurbish_prompt_open(ride_id_t rideIndex)
         int x = w->x;
         int y = w->y;
         window_close(w);
-        w = window_create(x, y, WW, WH, &window_ride_refurbish_events, WC_DEMOLISH_RIDE_PROMPT, WF_TRANSPARENT);
+        w = window_create(ScreenCoordsXY(x, y), WW, WH, &window_ride_refurbish_events, WC_DEMOLISH_RIDE_PROMPT, WF_TRANSPARENT);
     }
     else
     {
@@ -166,8 +166,8 @@ rct_window* window_ride_refurbish_prompt_open(ride_id_t rideIndex)
     w->widgets = window_ride_refurbish_widgets;
     w->enabled_widgets = (1 << WIDX_CLOSE) | (1 << WIDX_CANCEL) | (1 << WIDX_REFURBISH);
     window_init_scroll_widgets(w);
-    w->number = rideIndex;
-    _demolishRideCost = -ride_get_refund_price(rideIndex);
+    w->number = ride->id;
+    _demolishRideCost = -ride_get_refund_price(ride);
 
     return w;
 }
@@ -182,7 +182,8 @@ static void window_ride_demolish_mouseup(rct_window* w, rct_widgetindex widgetIn
     {
         case WIDX_DEMOLISH:
         {
-            ride_action_modify(w->number, RIDE_MODIFY_DEMOLISH, GAME_COMMAND_FLAG_APPLY);
+            auto ride = get_ride(w->number);
+            ride_action_modify(ride, RIDE_MODIFY_DEMOLISH, GAME_COMMAND_FLAG_APPLY);
             break;
         }
         case WIDX_CANCEL:
@@ -198,7 +199,8 @@ static void window_ride_refurbish_mouseup(rct_window* w, rct_widgetindex widgetI
     {
         case WIDX_REFURBISH:
         {
-            ride_action_modify(w->number, RIDE_MODIFY_RENEW, GAME_COMMAND_FLAG_APPLY);
+            auto ride = get_ride(w->number);
+            ride_action_modify(ride, RIDE_MODIFY_RENEW, GAME_COMMAND_FLAG_APPLY);
             break;
         }
         case WIDX_CANCEL:
@@ -216,22 +218,16 @@ static void window_ride_demolish_paint(rct_window* w, rct_drawpixelinfo* dpi)
 {
     window_draw_widgets(w, dpi);
 
-    Ride* ride = get_ride(w->number);
-
-    set_format_arg(0, rct_string_id, ride->name);
-    set_format_arg(2, uint32_t, ride->name_arguments);
-    set_format_arg(6, money32, _demolishRideCost);
-
-    int32_t x = w->x + WW / 2;
-    int32_t y = w->y + (WH / 2) - 3;
-
-    if (gParkFlags & PARK_FLAGS_NO_MONEY)
+    auto ride = get_ride(w->number);
+    if (ride != nullptr)
     {
-        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, STR_DEMOLISH_RIDE_ID, COLOUR_BLACK);
-    }
-    else
-    {
-        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, STR_DEMOLISH_RIDE_ID_MONEY, COLOUR_BLACK);
+        auto stringId = (gParkFlags & PARK_FLAGS_NO_MONEY) ? STR_DEMOLISH_RIDE_ID : STR_DEMOLISH_RIDE_ID_MONEY;
+        auto nameArgLen = ride->FormatNameTo(gCommonFormatArgs);
+        set_format_arg(nameArgLen, money32, _demolishRideCost);
+
+        int32_t x = w->x + WW / 2;
+        int32_t y = w->y + (WH / 2) - 3;
+        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, stringId, COLOUR_BLACK);
     }
 }
 
@@ -239,21 +235,15 @@ static void window_ride_refurbish_paint(rct_window* w, rct_drawpixelinfo* dpi)
 {
     window_draw_widgets(w, dpi);
 
-    Ride* ride = get_ride(w->number);
-
-    set_format_arg(0, rct_string_id, ride->name);
-    set_format_arg(2, uint32_t, ride->name_arguments);
-    set_format_arg(6, money32, _demolishRideCost / 2);
-
-    int32_t x = w->x + WW / 2;
-    int32_t y = w->y + (WH / 2) - 3;
-
-    if (gParkFlags & PARK_FLAGS_NO_MONEY)
+    auto ride = get_ride(w->number);
+    if (ride != nullptr)
     {
-        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, STR_REFURBISH_RIDE_ID_NO_MONEY, COLOUR_BLACK);
-    }
-    else
-    {
-        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, STR_REFURBISH_RIDE_ID_MONEY, COLOUR_BLACK);
+        auto stringId = (gParkFlags & PARK_FLAGS_NO_MONEY) ? STR_REFURBISH_RIDE_ID_NO_MONEY : STR_REFURBISH_RIDE_ID_MONEY;
+        auto nameArgLen = ride->FormatNameTo(gCommonFormatArgs);
+        set_format_arg(nameArgLen, money32, _demolishRideCost / 2);
+
+        int32_t x = w->x + WW / 2;
+        int32_t y = w->y + (WH / 2) - 3;
+        gfx_draw_string_centred_wrapped(dpi, gCommonFormatArgs, x, y, WW - 4, stringId, COLOUR_BLACK);
     }
 }

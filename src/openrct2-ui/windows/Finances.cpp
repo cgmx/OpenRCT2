@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -14,6 +14,7 @@
 #include <openrct2-ui/windows/Window.h>
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
+#include <openrct2/GameState.h>
 #include <openrct2/actions/ParkSetLoanAction.hpp>
 #include <openrct2/actions/ParkSetResearchFundingAction.hpp>
 #include <openrct2/config/Config.h>
@@ -535,10 +536,10 @@ rct_window* window_finances_open()
     }
 
     w->page = WINDOW_FINANCES_PAGE_SUMMARY;
-    window_invalidate(w);
+    w->Invalidate();
     w->width = 530;
     w->height = 310;
-    window_invalidate(w);
+    w->Invalidate();
 
     w->widgets = _windowFinancesPageWidgets[WINDOW_FINANCES_PAGE_SUMMARY];
     w->enabled_widgets = WindowFinancesPageEnabledWidgets[WINDOW_FINANCES_PAGE_SUMMARY];
@@ -611,14 +612,14 @@ static void window_finances_summary_mousedown(rct_window* w, rct_widgetindex wid
     }
 }
 
-static uint16_t summary_num_months_available()
+static uint16_t summary_max_available_month()
 {
-    return std::min<uint16_t>(gDateMonthsElapsed, EXPENDITURE_TABLE_MONTH_COUNT);
+    return std::min<uint16_t>(gDateMonthsElapsed, EXPENDITURE_TABLE_MONTH_COUNT - 1);
 }
 
 static void window_finances_summary_scrollgetsize(rct_window* w, int32_t scrollIndex, int32_t* width, int32_t* height)
 {
-    *width = EXPENDITURE_COLUMN_WIDTH * (summary_num_months_available() + 1);
+    *width = EXPENDITURE_COLUMN_WIDTH * (summary_max_available_month() + 1);
 }
 
 static void window_finances_summary_invertscroll(rct_window* w)
@@ -737,7 +738,7 @@ static void window_finances_summary_scrollpaint(rct_window* w, rct_drawpixelinfo
 
     // Expenditure / Income values for each month
     int16_t currentMonthYear = gDateMonthsElapsed;
-    for (int32_t i = summary_num_months_available(); i >= 0; i--)
+    for (int32_t i = summary_max_available_month(); i >= 0; i--)
     {
         y = 0;
 
@@ -1127,8 +1128,6 @@ static void window_finances_marketing_update(rct_window* w)
  */
 static void window_finances_marketing_invalidate(rct_window* w)
 {
-    int32_t i;
-
     if (w->widgets != _windowFinancesPageWidgets[WINDOW_FINANCES_PAGE_MARKETING])
     {
         w->widgets = _windowFinancesPageWidgets[WINDOW_FINANCES_PAGE_MARKETING];
@@ -1138,11 +1137,7 @@ static void window_finances_marketing_invalidate(rct_window* w)
     window_finances_set_pressed_tab(w);
 
     // Count number of active campaigns
-    int32_t numActiveCampaigns = 0;
-    for (i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
-        if (gMarketingCampaignDaysLeft[i] != 0)
-            numActiveCampaigns++;
-
+    int32_t numActiveCampaigns = (int32_t)gMarketingCampaigns.size();
     int32_t y = std::max(1, numActiveCampaigns) * LIST_ROW_HEIGHT + 92;
 
     // Update group box positions
@@ -1151,22 +1146,21 @@ static void window_finances_marketing_invalidate(rct_window* w)
 
     // Update new campaign button visibility
     y += 3;
-    for (i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
+    for (int32_t i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
     {
-        rct_widget* campaignButton = &_windowFinancesMarketingWidgets[WIDX_CAMPAIGN_1 + i];
-
-        campaignButton->type = WWT_EMPTY;
-
-        if (gMarketingCampaignDaysLeft[i] != 0)
-            continue;
-
-        if (!marketing_is_campaign_type_applicable(i))
-            continue;
-
-        campaignButton->type = WWT_BUTTON;
-        campaignButton->top = y;
-        campaignButton->bottom = y + BUTTON_FACE_HEIGHT + 1;
-        y += BUTTON_FACE_HEIGHT + 2;
+        auto campaignButton = &_windowFinancesMarketingWidgets[WIDX_CAMPAIGN_1 + i];
+        auto campaign = marketing_get_campaign(i);
+        if (campaign == nullptr && marketing_is_campaign_type_applicable(i))
+        {
+            campaignButton->type = WWT_BUTTON;
+            campaignButton->top = y;
+            campaignButton->bottom = y + BUTTON_FACE_HEIGHT + 1;
+            y += BUTTON_FACE_HEIGHT + 2;
+        }
+        else
+        {
+            campaignButton->type = WWT_EMPTY;
+        }
     }
 }
 
@@ -1176,44 +1170,54 @@ static void window_finances_marketing_invalidate(rct_window* w)
  */
 static void window_finances_marketing_paint(rct_window* w, rct_drawpixelinfo* dpi)
 {
-    int32_t i, x, y, weeksRemaining;
-    Ride* ride;
-
     window_draw_widgets(w, dpi);
     window_finances_draw_tab_images(dpi, w);
 
-    x = w->x + 8;
-    y = w->y + 62;
-
+    int32_t x = w->x + 8;
+    int32_t y = w->y + 62;
     int32_t noCampaignsActive = 1;
-    for (i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
+    for (int32_t i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
     {
-        if (gMarketingCampaignDaysLeft[i] == 0)
+        auto campaign = marketing_get_campaign(i);
+        if (campaign == nullptr)
             continue;
 
         noCampaignsActive = 0;
-        set_format_arg(0, rct_string_id, gParkName);
-        set_format_arg(2, uint32_t, gParkNameArgs);
 
         // Set special parameters
         switch (i)
         {
             case ADVERTISING_CAMPAIGN_RIDE_FREE:
             case ADVERTISING_CAMPAIGN_RIDE:
-                ride = get_ride(gMarketingCampaignRideIndex[i]);
-                set_format_arg(0, rct_string_id, ride->name);
-                set_format_arg(2, uint32_t, ride->name_arguments);
+            {
+                auto ride = get_ride(campaign->RideId);
+                if (ride != nullptr)
+                {
+                    ride->FormatNameTo(gCommonFormatArgs);
+                }
+                else
+                {
+                    set_format_arg(0, rct_string_id, STR_NONE);
+                }
                 break;
+            }
             case ADVERTISING_CAMPAIGN_FOOD_OR_DRINK_FREE:
-                set_format_arg(0, rct_string_id, ShopItemStringIds[gMarketingCampaignRideIndex[i]].plural);
+                set_format_arg(0, rct_string_id, ShopItems[campaign->ShopItemType].Naming.Plural);
                 break;
+            default:
+            {
+                auto& park = OpenRCT2::GetContext()->GetGameState()->GetPark();
+                auto parkName = park.Name.c_str();
+                set_format_arg(0, rct_string_id, STR_STRING);
+                set_format_arg(2, const char*, parkName);
+            }
         }
 
         // Advertisement
         gfx_draw_string_left_clipped(dpi, MarketingCampaignNames[i][1], gCommonFormatArgs, COLOUR_BLACK, x + 4, y, 296);
 
         // Duration
-        weeksRemaining = (gMarketingCampaignDaysLeft[i] % 128);
+        uint16_t weeksRemaining = campaign->WeeksLeft;
         gfx_draw_string_left(
             dpi, weeksRemaining == 1 ? STR_1_WEEK_REMAINING : STR_X_WEEKS_REMAINING, &weeksRemaining, COLOUR_BLACK, x + 304, y);
 
@@ -1228,20 +1232,18 @@ static void window_finances_marketing_paint(rct_window* w, rct_drawpixelinfo* dp
     y += 34;
 
     // Draw campaign button text
-    for (i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
+    for (int32_t i = 0; i < ADVERTISING_CAMPAIGN_COUNT; i++)
     {
-        rct_widget* campaginButton = &_windowFinancesMarketingWidgets[WIDX_CAMPAIGN_1 + i];
+        auto campaignButton = &_windowFinancesMarketingWidgets[WIDX_CAMPAIGN_1 + i];
+        if (campaignButton->type != WWT_EMPTY)
+        {
+            // Draw button text
+            money32 pricePerWeek = AdvertisingCampaignPricePerWeek[i];
+            gfx_draw_string_left(dpi, MarketingCampaignNames[i][0], nullptr, COLOUR_BLACK, x + 4, y);
+            gfx_draw_string_left(dpi, STR_MARKETING_PER_WEEK, &pricePerWeek, COLOUR_BLACK, x + 310, y);
 
-        if (campaginButton->type == WWT_EMPTY)
-            continue;
-
-        money32 pricePerWeek = AdvertisingCampaignPricePerWeek[i];
-
-        // Draw button text
-        gfx_draw_string_left(dpi, MarketingCampaignNames[i][0], nullptr, COLOUR_BLACK, x + 4, y);
-        gfx_draw_string_left(dpi, STR_MARKETING_PER_WEEK, &pricePerWeek, COLOUR_BLACK, x + 310, y);
-
-        y += BUTTON_FACE_HEIGHT + 2;
+            y += BUTTON_FACE_HEIGHT + 2;
+        }
     }
 }
 
@@ -1425,7 +1427,7 @@ static void window_finances_set_page(rct_window* w, int32_t page)
     w->disabled_widgets = 0;
     w->pressed_widgets = 0;
 
-    window_invalidate(w);
+    w->Invalidate();
     if (w->page == WINDOW_FINANCES_PAGE_RESEARCH)
     {
         w->width = 320;
@@ -1445,7 +1447,7 @@ static void window_finances_set_page(rct_window* w, int32_t page)
     window_event_invalidate_call(w);
 
     window_init_scroll_widgets(w);
-    window_invalidate(w);
+    w->Invalidate();
 
     // Scroll summary all the way to the right, initially.
     if (w->page == WINDOW_FINANCES_PAGE_SUMMARY)

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -251,7 +251,8 @@ void window_title_command_editor_open(TitleSequence* sequence, int32_t index, bo
     rct_widget* const viewportWidget = &window_title_command_editor_widgets[WIDX_VIEWPORT];
     viewport_create(
         window, window->x + viewportWidget->left + 1, window->y + viewportWidget->top + 1,
-        viewportWidget->right - viewportWidget->left - 1, viewportWidget->bottom - viewportWidget->top - 1, 0, 0, 0, 0, 0, -1);
+        viewportWidget->right - viewportWidget->left - 1, viewportWidget->bottom - viewportWidget->top - 1, 0, 0, 0, 0, 0,
+        SPRITE_INDEX_NULL);
 
     _window_title_command_editor_index = index;
     _window_title_command_editor_insert = insert;
@@ -335,7 +336,7 @@ static void window_title_command_editor_mouseup(rct_window* w, rct_widgetindex w
                 command.Zoom = zoom;
                 snprintf(textbox1Buffer, BUF_SIZE, "%d", command.Zoom);
             }
-            window_invalidate(w);
+            w->Invalidate();
             break;
         case WIDX_SELECT_SCENARIO:
             window_scenarioselect_open(scenario_select_callback, true);
@@ -500,7 +501,7 @@ static void window_title_command_editor_dropdown(rct_window* w, rct_widgetindex 
                 case TITLE_SCRIPT_LOADSC:
                     command.Scenario[0] = '\0';
             }
-            window_invalidate(w);
+            w->Invalidate();
             break;
         case WIDX_INPUT_DROPDOWN:
             switch (command.Type)
@@ -509,14 +510,14 @@ static void window_title_command_editor_dropdown(rct_window* w, rct_widgetindex 
                     if (dropdownIndex != command.Speed - 1)
                     {
                         command.Speed = (uint8_t)(dropdownIndex + 1);
-                        window_invalidate(w);
+                        w->Invalidate();
                     }
                     break;
                 case TITLE_SCRIPT_LOAD:
                     if (dropdownIndex != command.SaveIndex)
                     {
                         command.SaveIndex = (uint8_t)dropdownIndex;
-                        window_invalidate(w);
+                        w->Invalidate();
                     }
                     break;
             }
@@ -560,7 +561,7 @@ static void window_title_command_editor_textinput(rct_window* w, rct_widgetindex
                         snprintf(textbox1Buffer, BUF_SIZE, "%d", command.Rotations);
                     }
                 }
-                window_invalidate(w);
+                w->Invalidate();
             }
             else
             {
@@ -575,7 +576,7 @@ static void window_title_command_editor_textinput(rct_window* w, rct_widgetindex
                     command.X = (uint8_t)value;
                 }
                 snprintf(textbox1Buffer, BUF_SIZE, "%d", command.X);
-                window_invalidate(w);
+                w->Invalidate();
             }
             else
             {
@@ -590,7 +591,7 @@ static void window_title_command_editor_textinput(rct_window* w, rct_widgetindex
                     command.Y = (uint8_t)value;
                 }
                 snprintf(textbox2Buffer, BUF_SIZE, "%d", command.Y);
-                window_invalidate(w);
+                w->Invalidate();
             }
             else
             {
@@ -622,16 +623,28 @@ static void window_title_command_editor_tool_down(rct_window* w, rct_widgetindex
         if (spriteIdentifier == SPRITE_IDENTIFIER_PEEP)
         {
             validSprite = true;
-            rct_peep* peep = GET_PEEP(spriteIndex);
-            format_string(command.SpriteName, USER_STRING_MAX_LENGTH, peep->name_string_idx, &peep->id);
+            auto peep = GET_PEEP(spriteIndex);
+            if (peep != nullptr)
+            {
+                uint8_t formatArgs[32]{};
+                peep->FormatNameTo(formatArgs);
+                format_string(command.SpriteName, USER_STRING_MAX_LENGTH, STR_STRINGID, &peep->id);
+            }
         }
         else if (spriteIdentifier == SPRITE_IDENTIFIER_VEHICLE)
         {
             validSprite = true;
-            rct_vehicle* vehicle = GET_VEHICLE(spriteIndex);
-            Ride* ride = get_ride(vehicle->ride);
-            set_format_arg(16, uint32_t, ride->name_arguments);
-            format_string(command.SpriteName, USER_STRING_MAX_LENGTH, ride->name, &ride->name_arguments);
+            auto vehicle = GET_VEHICLE(spriteIndex);
+            if (vehicle != nullptr)
+            {
+                auto ride = get_ride(vehicle->ride);
+                if (ride != nullptr)
+                {
+                    uint8_t formatArgs[32]{};
+                    ride->FormatNameTo(formatArgs);
+                    format_string(command.SpriteName, USER_STRING_MAX_LENGTH, STR_STRINGID, formatArgs);
+                }
+            }
         }
         else if (spriteIdentifier == SPRITE_IDENTIFIER_LITTER)
         {
@@ -660,7 +673,7 @@ static void window_title_command_editor_tool_down(rct_window* w, rct_widgetindex
             command.SpriteIndex = spriteIndex;
             window_follow_sprite(w, (size_t)command.SpriteIndex);
             tool_cancel();
-            window_invalidate(w);
+            w->Invalidate();
         }
     }
 }

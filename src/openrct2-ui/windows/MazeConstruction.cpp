@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -13,6 +13,7 @@
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
 #include <openrct2/Input.h>
+#include <openrct2/actions/RideEntranceExitPlaceAction.hpp>
 #include <openrct2/audio/audio.h>
 #include <openrct2/drawing/Drawing.h>
 #include <openrct2/localisation/Localisation.h>
@@ -134,7 +135,8 @@ static void window_maze_construction_construct(int32_t direction);
  */
 rct_window* window_maze_construction_open()
 {
-    rct_window* w = window_create(0, 29, 166, 200, &window_maze_construction_events, WC_RIDE_CONSTRUCTION, WF_NO_AUTO_CLOSE);
+    rct_window* w = window_create(
+        ScreenCoordsXY(0, 29), 166, 200, &window_maze_construction_events, WC_RIDE_CONSTRUCTION, WF_NO_AUTO_CLOSE);
     w->widgets = window_maze_construction_widgets;
     w->enabled_widgets = (1ULL << WIDX_CLOSE) | (1ULL << WIDX_MAZE_BUILD_MODE) | (1ULL << WIDX_MAZE_MOVE_MODE)
         | (1ULL << WIDX_MAZE_FILL_MODE) | (1ULL << WIDX_MAZE_DIRECTION_NW) | (1ULL << WIDX_MAZE_DIRECTION_NE)
@@ -168,20 +170,22 @@ static void window_maze_construction_close(rct_window* w)
 
     hide_gridlines();
 
-    ride_id_t rideIndex = _currentRideIndex;
-    Ride* ride = get_ride(rideIndex);
-    if (ride->overall_view.xy == RCT_XY8_UNDEFINED)
+    auto ride = get_ride(_currentRideIndex);
+    if (ride != nullptr)
     {
-        int32_t savedPausedState = gGamePaused;
-        gGamePaused = 0;
-        ride_action_modify(rideIndex, RIDE_MODIFY_DEMOLISH, GAME_COMMAND_FLAG_APPLY | GAME_COMMAND_FLAG_ALLOW_DURING_PAUSED);
-        gGamePaused = savedPausedState;
-    }
-    else
-    {
-        auto intent = Intent(WC_RIDE);
-        intent.putExtra(INTENT_EXTRA_RIDE_ID, rideIndex);
-        context_open_intent(&intent);
+        if (ride->overall_view.xy == RCT_XY8_UNDEFINED)
+        {
+            int32_t savedPausedState = gGamePaused;
+            gGamePaused = 0;
+            ride_action_modify(ride, RIDE_MODIFY_DEMOLISH, GAME_COMMAND_FLAG_APPLY | GAME_COMMAND_FLAG_ALLOW_DURING_PAUSED);
+            gGamePaused = savedPausedState;
+        }
+        else
+        {
+            auto intent = Intent(WC_RIDE);
+            intent.putExtra(INTENT_EXTRA_RIDE_ID, ride->id);
+            context_open_intent(&intent);
+        }
     }
 }
 
@@ -288,7 +292,7 @@ static void window_maze_construction_mousedown(rct_window* w, rct_widgetindex wi
  */
 static void window_maze_construction_update(rct_window* w)
 {
-    Ride* ride = get_ride(_currentRideIndex);
+    auto ride = get_ride(_currentRideIndex);
     if (ride == nullptr || ride->status != RIDE_STATUS_CLOSED)
     {
         window_close(w);
@@ -336,11 +340,11 @@ static void window_maze_construction_toolupdate(rct_window* w, rct_widgetindex w
     switch (widgetIndex)
     {
         case WIDX_MAZE_DIRECTION_GROUPBOX:
-            ride_construction_toolupdate_construct(x, y);
+            ride_construction_toolupdate_construct(ScreenCoordsXY(x, y));
             break;
         case WIDX_MAZE_ENTRANCE:
         case WIDX_MAZE_EXIT:
-            ride_construction_toolupdate_entrance_exit(x, y);
+            ride_construction_toolupdate_entrance_exit(ScreenCoordsXY(x, y));
             break;
     }
 }
@@ -365,38 +369,32 @@ static void window_maze_construction_entrance_tooldown(int32_t x, int32_t y, rct
         return;
 
     ride_id_t rideIndex = gRideEntranceExitPlaceRideIndex;
-    uint8_t entranceExitType = gRideEntranceExitPlaceType;
-    if (entranceExitType == ENTRANCE_TYPE_RIDE_ENTRANCE)
-    {
-        gGameCommandErrorTitle = STR_CANT_BUILD_MOVE_ENTRANCE_FOR_THIS_RIDE_ATTRACTION;
-    }
-    else
-    {
-        gGameCommandErrorTitle = STR_CANT_BUILD_MOVE_EXIT_FOR_THIS_RIDE_ATTRACTION;
-    }
 
-    money32 cost = game_do_command(
-        x, GAME_COMMAND_FLAG_APPLY | (direction_reverse(direction) << 8), y, rideIndex | (entranceExitType << 8),
-        GAME_COMMAND_PLACE_RIDE_ENTRANCE_OR_EXIT, gRideEntranceExitPlaceStationIndex, 0);
+    auto rideEntranceExitPlaceAction = RideEntranceExitPlaceAction(
+        { x, y }, direction_reverse(direction), rideIndex, gRideEntranceExitPlaceStationIndex,
+        gRideEntranceExitPlaceType == ENTRANCE_TYPE_RIDE_EXIT);
 
-    if (cost == MONEY32_UNDEFINED)
-        return;
+    rideEntranceExitPlaceAction.SetCallback([=](const GameAction* ga, const GameActionResult* result) {
+        if (result->Error != GA_ERROR::OK)
+            return;
 
-    audio_play_sound_at_location(SOUND_PLACE_ITEM, gCommandPosition.x, gCommandPosition.y, gCommandPosition.z);
+        audio_play_sound_at_location(SoundId::PlaceItem, result->Position);
 
-    Ride* ride = get_ride(rideIndex);
-    if (ride_are_all_possible_entrances_and_exits_built(ride))
-    {
-        tool_cancel();
-        if (ride_type_has_flag(ride->type, RIDE_TYPE_FLAG_HAS_NO_TRACK))
-            window_close(w);
-    }
-    else
-    {
-        gRideEntranceExitPlaceType = entranceExitType ^ 1;
-        window_invalidate_by_class(WC_RIDE_CONSTRUCTION);
-        gCurrentToolWidget.widget_index = entranceExitType ? WIDX_MAZE_ENTRANCE : WIDX_MAZE_EXIT;
-    }
+        auto ride = get_ride(rideIndex);
+        if (ride != nullptr && ride_are_all_possible_entrances_and_exits_built(ride))
+        {
+            tool_cancel();
+            if (ride_type_has_flag(ride->type, RIDE_TYPE_FLAG_HAS_NO_TRACK))
+                window_close_by_class(WC_RIDE_CONSTRUCTION);
+        }
+        else
+        {
+            gRideEntranceExitPlaceType = gRideEntranceExitPlaceType ^ 1;
+            window_invalidate_by_class(WC_RIDE_CONSTRUCTION);
+            gCurrentToolWidget.widget_index = gRideEntranceExitPlaceType ? WIDX_MAZE_ENTRANCE : WIDX_MAZE_EXIT;
+        }
+    });
+    auto res = GameActions::Execute(&rideEntranceExitPlaceAction);
 }
 
 /**
@@ -408,7 +406,7 @@ static void window_maze_construction_tooldown(rct_window* w, rct_widgetindex wid
     switch (widgetIndex)
     {
         case WIDX_MAZE_DIRECTION_GROUPBOX:
-            ride_construction_tooldown_construct(x, y);
+            ride_construction_tooldown_construct(ScreenCoordsXY(x, y));
             break;
         case WIDX_MAZE_ENTRANCE:
         case WIDX_MAZE_EXIT:
@@ -423,11 +421,15 @@ static void window_maze_construction_tooldown(rct_window* w, rct_widgetindex wid
  */
 static void window_maze_construction_invalidate(rct_window* w)
 {
-    Ride* ride = get_ride(_currentRideIndex);
-
-    // Set window title arguments
-    set_format_arg(4, rct_string_id, ride->name);
-    set_format_arg(6, uint32_t, ride->name_arguments);
+    auto ride = get_ride(_currentRideIndex);
+    if (ride != nullptr)
+    {
+        ride->FormatNameTo(gCommonFormatArgs + 4);
+    }
+    else
+    {
+        set_format_arg(4, rct_string_id, STR_NONE);
+    }
 }
 
 /**
@@ -470,7 +472,7 @@ void window_maze_construction_update_pressed_widgets()
     }
 
     w->pressed_widgets = pressedWidgets;
-    window_invalidate(w);
+    w->Invalidate();
 }
 
 /**
@@ -483,9 +485,9 @@ static void window_maze_construction_construct(int32_t direction)
 
     ride_construction_invalidate_current_track();
 
-    x = _currentTrackBeginX + (CoordsDirectionDelta[direction].x / 2);
-    y = _currentTrackBeginY + (CoordsDirectionDelta[direction].y / 2);
-    z = _currentTrackBeginZ;
+    x = _currentTrackBegin.x + (CoordsDirectionDelta[direction].x / 2);
+    y = _currentTrackBegin.y + (CoordsDirectionDelta[direction].y / 2);
+    z = _currentTrackBegin.z;
     switch (_rideConstructionState)
     {
         case RIDE_CONSTRUCTION_STATE_MAZE_BUILD:
@@ -509,10 +511,10 @@ static void window_maze_construction_construct(int32_t direction)
         return;
     }
 
-    _currentTrackBeginX = x;
-    _currentTrackBeginY = y;
+    _currentTrackBegin.x = x;
+    _currentTrackBegin.y = y;
     if (_rideConstructionState != RIDE_CONSTRUCTION_STATE_MAZE_MOVE)
     {
-        audio_play_sound_at_location(SOUND_PLACE_ITEM, x, y, z);
+        audio_play_sound_at_location(SoundId::PlaceItem, { x, y, z });
     }
 }

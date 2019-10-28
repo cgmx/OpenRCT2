@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -63,6 +63,8 @@ extern money32 gExpenditureTable[EXPENDITURE_TABLE_MONTH_COUNT][RCT_EXPENDITURE_
 
 extern uint8_t gCommandExpenditureType;
 
+bool finance_check_money_required(uint32_t flags);
+bool finance_check_affordability(money32 cost, uint32_t flags);
 void finance_payment(money32 amount, rct_expenditure_type type);
 void finance_pay_wages();
 void finance_pay_research();

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -18,7 +18,7 @@
 struct paint_session;
 struct paint_struct;
 struct rct_drawpixelinfo;
-struct rct_peep;
+struct Peep;
 struct TileElement;
 struct rct_vehicle;
 struct rct_window;
@@ -46,6 +46,7 @@ enum
     VIEWPORT_FLAG_SEETHROUGH_PATHS = (1 << 16),
     VIEWPORT_FLAG_CLIP_VIEW = (1 << 17),
     VIEWPORT_FLAG_HIGHLIGHT_PATH_ISSUES = (1 << 18),
+    VIEWPORT_FLAG_TRANSPARENT_BACKGROUND = (1 << 19),
 };
 
 enum
@@ -91,7 +92,7 @@ struct viewport_interaction_info
     {
         TileElement* tileElement;
         rct_sprite* sprite;
-        rct_peep* peep;
+        Peep* peep;
         rct_vehicle* vehicle;
     };
 };
@@ -122,18 +123,18 @@ void viewport_init_all();
 void centre_2d_coordinates(int32_t x, int32_t y, int32_t z, int32_t* out_x, int32_t* out_y, rct_viewport* viewport);
 void viewport_create(
     rct_window* w, int32_t x, int32_t y, int32_t width, int32_t height, int32_t zoom, int32_t centre_x, int32_t centre_y,
-    int32_t centre_z, char flags, int16_t sprite);
+    int32_t centre_z, char flags, uint16_t sprite);
 void viewport_update_position(rct_window* window);
 void viewport_update_sprite_follow(rct_window* window);
 void viewport_update_smart_sprite_follow(rct_window* window);
-void viewport_update_smart_guest_follow(rct_window* window, rct_peep* peep);
-void viewport_update_smart_staff_follow(rct_window* window, rct_peep* peep);
+viewport_focus viewport_update_smart_guest_follow(rct_window* window, Peep* peep);
+void viewport_update_smart_staff_follow(rct_window* window, Peep* peep);
 void viewport_update_smart_vehicle_follow(rct_window* window);
 void viewport_render(
-    rct_drawpixelinfo* dpi, rct_viewport* viewport, int32_t left, int32_t top, int32_t right, int32_t bottom,
+    rct_drawpixelinfo* dpi, const rct_viewport* viewport, int32_t left, int32_t top, int32_t right, int32_t bottom,
     std::vector<paint_session>* sessions = nullptr);
 void viewport_paint(
-    rct_viewport* viewport, rct_drawpixelinfo* dpi, int16_t left, int16_t top, int16_t right, int16_t bottom,
+    const rct_viewport* viewport, rct_drawpixelinfo* dpi, int16_t left, int16_t top, int16_t right, int16_t bottom,
     std::vector<paint_session>* sessions = nullptr);
 
 void viewport_adjust_for_map_height(int16_t* x, int16_t* y, int16_t* z);
@@ -164,7 +165,7 @@ int32_t viewport_interaction_get_item_right(int32_t x, int32_t y, viewport_inter
 int32_t viewport_interaction_right_over(int32_t x, int32_t y);
 int32_t viewport_interaction_right_click(int32_t x, int32_t y);
 
-void sub_68A15E(int32_t screenX, int32_t screenY, int16_t* x, int16_t* y, int32_t* direction, TileElement** tileElement);
+void sub_68A15E(int32_t screenX, int32_t screenY, int16_t* x, int16_t* y);
 void sub_68B2B7(paint_session* session, int32_t x, int32_t y);
 
 void viewport_invalidate(rct_viewport* viewport, int32_t left, int32_t top, int32_t right, int32_t bottom);

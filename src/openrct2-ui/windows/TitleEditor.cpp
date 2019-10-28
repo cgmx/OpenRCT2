@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -363,21 +363,27 @@ static void window_title_editor_mouseup(rct_window* w, rct_widgetindex widgetInd
                 auto handle = TitleSequenceGetParkHandle(_editingTitleSequence, w->selected_list_item);
                 auto stream = (IStream*)handle->Stream;
                 auto hintPath = String::ToStd(handle->HintPath);
-
                 bool isScenario = ParkImporter::ExtensionIsScenario(hintPath);
-                auto& objectMgr = OpenRCT2::GetContext()->GetObjectManager();
-                auto parkImporter = std::unique_ptr<IParkImporter>(ParkImporter::Create(hintPath));
-                auto result = parkImporter->LoadFromStream(stream, isScenario);
-                objectMgr.LoadObjects(result.RequiredObjects.data(), result.RequiredObjects.size());
-                parkImporter->Import();
+                try
+                {
+                    auto& objectMgr = OpenRCT2::GetContext()->GetObjectManager();
+                    auto parkImporter = std::unique_ptr<IParkImporter>(ParkImporter::Create(hintPath));
+                    auto result = parkImporter->LoadFromStream(stream, isScenario);
+                    objectMgr.LoadObjects(result.RequiredObjects.data(), result.RequiredObjects.size());
+                    parkImporter->Import();
 
-                if (isScenario)
-                    scenario_begin();
-                else
-                    game_load_init();
+                    if (isScenario)
+                        scenario_begin();
+                    else
+                        game_load_init();
 
-                TitleSequenceCloseParkHandle(handle);
-                window_title_editor_open(WINDOW_TITLE_EDITOR_TAB_SAVES);
+                    TitleSequenceCloseParkHandle(handle);
+                    window_title_editor_open(WINDOW_TITLE_EDITOR_TAB_SAVES);
+                }
+                catch (const std::exception&)
+                {
+                    context_show_error(ERROR_TYPE_FILE_LOAD, STR_FILE_CONTAINS_INVALID_DATA);
+                }
             }
             break;
 
@@ -529,7 +535,7 @@ static void window_title_editor_mousedown(rct_window* w, rct_widgetindex widgetI
                 w->scrolls[0].v_top = 0;
                 w->frame_no = 0;
                 window_event_resize_call(w);
-                window_invalidate(w);
+                w->Invalidate();
             }
             break;
         }
@@ -565,7 +571,7 @@ static void window_title_editor_dropdown(rct_window* w, rct_widgetindex widgetIn
     if (widgetIndex == WIDX_TITLE_EDITOR_PRESETS_DROPDOWN)
     {
         window_title_editor_load_sequence(dropdownIndex);
-        window_invalidate(w);
+        w->Invalidate();
     }
 }
 
@@ -604,7 +610,7 @@ static void window_title_editor_scrollgetsize(rct_window* w, int32_t scrollIndex
     if (i < w->scrolls[0].v_top)
     {
         w->scrolls[0].v_top = i;
-        window_invalidate(w);
+        w->Invalidate();
     }
 
     *width = SCROLL_WIDTH;
@@ -682,7 +688,7 @@ static void window_title_editor_textinput(rct_window* w, rct_widgetindex widgetI
                             window_title_editor_load_sequence(newIndex);
                         }
                         config_save_default();
-                        window_invalidate(w);
+                        w->Invalidate();
                     }
                     else
                     {
@@ -995,7 +1001,7 @@ static void window_title_editor_scrollpaint_commands(rct_window* w, rct_drawpixe
                 commandName = STR_TITLE_EDITOR_COMMAND_LOAD_FILE;
                 const char* name = "";
                 source_desc desc;
-                if (scenario_get_source_desc_by_id(command->SaveIndex, &desc))
+                if (ScenarioSources::TryGetById(command->SaveIndex, &desc))
                 {
                     name = desc.title;
                 }

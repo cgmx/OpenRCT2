@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -11,6 +11,7 @@
 
 #include "../Context.h"
 #include "../Game.h"
+#include "../OpenRCT2.h"
 #include "../interface/Window.h"
 #include "../localisation/Date.h"
 #include "../localisation/Localisation.h"
@@ -65,6 +66,33 @@ money32 gExpenditureTable[EXPENDITURE_TABLE_MONTH_COUNT][RCT_EXPENDITURE_TYPE_CO
 uint8_t gCommandExpenditureType;
 
 /**
+ * Checks the condition if the game is required to use money.
+ * @param flags game command flags.
+ */
+bool finance_check_money_required(uint32_t flags)
+{
+    if (gParkFlags & PARK_FLAGS_NO_MONEY)
+        return false;
+    if (gScreenFlags & SCREEN_FLAGS_EDITOR)
+        return false;
+    if (flags & GAME_COMMAND_FLAG_NO_SPEND)
+        return false;
+    if (flags & GAME_COMMAND_FLAG_GHOST)
+        return false;
+    return true;
+}
+
+/**
+ * Checks if enough money is available.
+ * @param cost.
+ * @param flags game command flags.
+ */
+bool finance_check_affordability(money32 cost, uint32_t flags)
+{
+    return cost <= 0 || !finance_check_money_required(flags) || cost <= gCash;
+}
+
+/**
  * Pay an amount of money.
  *  rct2: 0x069C674
  * @param amount (eax)
@@ -92,7 +120,7 @@ void finance_payment(money32 amount, rct_expenditure_type type)
  */
 void finance_pay_wages()
 {
-    rct_peep* peep;
+    Peep* peep;
     uint16_t spriteIndex;
 
     if (gParkFlags & PARK_FLAGS_NO_MONEY)
@@ -151,30 +179,27 @@ void finance_pay_interest()
  */
 void finance_pay_ride_upkeep()
 {
-    int32_t i;
-    Ride* ride;
-
-    FOR_ALL_RIDES (i, ride)
+    for (auto& ride : GetRideManager())
     {
-        if (!(ride->lifecycle_flags & RIDE_LIFECYCLE_EVER_BEEN_OPENED))
+        if (!(ride.lifecycle_flags & RIDE_LIFECYCLE_EVER_BEEN_OPENED))
         {
-            ride_renew(ride);
+            ride.Renew();
         }
 
-        if (ride->status != RIDE_STATUS_CLOSED && !(gParkFlags & PARK_FLAGS_NO_MONEY))
+        if (ride.status != RIDE_STATUS_CLOSED && !(gParkFlags & PARK_FLAGS_NO_MONEY))
         {
-            int16_t upkeep = ride->upkeep_cost;
+            int16_t upkeep = ride.upkeep_cost;
             if (upkeep != -1)
             {
-                ride->total_profit -= upkeep;
-                ride->window_invalidate_flags |= RIDE_INVALIDATE_RIDE_INCOME;
+                ride.total_profit -= upkeep;
+                ride.window_invalidate_flags |= RIDE_INVALIDATE_RIDE_INCOME;
                 finance_payment(upkeep, RCT_EXPENDITURE_TYPE_RIDE_RUNNING_COSTS);
             }
         }
 
-        if (ride->last_crash_type != RIDE_CRASH_TYPE_NONE)
+        if (ride.last_crash_type != RIDE_CRASH_TYPE_NONE)
         {
-            ride->last_crash_type--;
+            ride.last_crash_type--;
         }
     }
 }
@@ -239,7 +264,7 @@ void finance_update_daily_profit()
     {
         // Staff costs
         uint16_t sprite_index;
-        rct_peep* peep;
+        Peep* peep;
 
         FOR_ALL_STAFF (sprite_index, peep)
         {
@@ -255,13 +280,11 @@ void finance_update_daily_profit()
         current_profit -= current_loan / 600;
 
         // Ride costs
-        Ride* ride;
-        int32_t i;
-        FOR_ALL_RIDES (i, ride)
+        for (auto& ride : GetRideManager())
         {
-            if (ride->status != RIDE_STATUS_CLOSED && ride->upkeep_cost != MONEY16_UNDEFINED)
+            if (ride.status != RIDE_STATUS_CLOSED && ride.upkeep_cost != MONEY16_UNDEFINED)
             {
-                current_profit -= 2 * ride->upkeep_cost;
+                current_profit -= 2 * ride.upkeep_cost;
             }
         }
     }

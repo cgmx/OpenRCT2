@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -16,6 +16,7 @@
 #include "../drawing/Drawing.h"
 #include "../interface/Cursors.h"
 #include "../localisation/Language.h"
+#include "../world/Banner.h"
 #include "../world/Location.hpp"
 #include "ObjectJsonHelpers.h"
 
@@ -131,7 +132,8 @@ void LargeSceneryObject::ReadJson(IReadObjectContext* context, const json_t* roo
     _legacyType.large_scenery.removal_price = json_integer_value(json_object_get(properties, "removalPrice"));
 
     auto jScrollingMode = json_object_get(properties, "scrollingMode");
-    _legacyType.large_scenery.scrolling_mode = jScrollingMode != nullptr ? json_integer_value(jScrollingMode) : -1;
+    _legacyType.large_scenery.scrolling_mode = jScrollingMode != nullptr ? json_integer_value(jScrollingMode)
+                                                                         : SCROLLING_MODE_NONE;
 
     // Flags
     _legacyType.large_scenery.flags = ObjectJsonHelpers::GetFlags<uint8_t>(
@@ -261,7 +263,7 @@ std::vector<rct_large_scenery_text_glyph> LargeSceneryObject::ReadJsonGlyphs(con
     const json_t* jGlyph;
     json_array_foreach(jGlpyhs, index, jGlyph)
     {
-        rct_large_scenery_text_glyph glyph;
+        rct_large_scenery_text_glyph glyph = {};
         glyph.image_offset = json_integer_value(json_object_get(jGlyph, "image"));
         glyph.width = json_integer_value(json_object_get(jGlyph, "width"));
         glyph.height = json_integer_value(json_object_get(jGlyph, "height"));

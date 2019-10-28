@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -17,8 +17,6 @@ int8_t ride_get_first_valid_station_exit(Ride* ride);
 int8_t ride_get_first_valid_station_start(const Ride* ride);
 int8_t ride_get_first_empty_station_start(const Ride* ride);
 
-TileCoordsXYZD ride_get_entrance_location(const ride_id_t rideIndex, const int32_t stationIndex);
-TileCoordsXYZD ride_get_exit_location(const ride_id_t rideIndex, const int32_t stationIndex);
 TileCoordsXYZD ride_get_entrance_location(const Ride* ride, const int32_t stationIndex);
 TileCoordsXYZD ride_get_exit_location(const Ride* ride, const int32_t stationIndex);
 

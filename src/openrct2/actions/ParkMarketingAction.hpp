@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -68,8 +68,19 @@ public:
 
     GameActionResult::Ptr Execute() const override
     {
-        gMarketingCampaignDaysLeft[_type] = _numWeeks | CAMPAIGN_ACTIVE_FLAG;
-        gMarketingCampaignRideIndex[_type] = _item;
+        MarketingCampaign campaign{};
+        campaign.Type = _type;
+        campaign.WeeksLeft = _numWeeks;
+        campaign.Flags = MarketingCampaignFlags::FIRST_WEEK;
+        if (campaign.Type == ADVERTISING_CAMPAIGN_RIDE_FREE || campaign.Type == ADVERTISING_CAMPAIGN_RIDE)
+        {
+            campaign.RideId = _item;
+        }
+        else if (campaign.Type == ADVERTISING_CAMPAIGN_FOOD_OR_DRINK_FREE)
+        {
+            campaign.ShopItemType = _item;
+        }
+        marketing_new_campaign(campaign);
 
         // We are only interested in invalidating the finances (marketing) window
         auto windowManager = OpenRCT2::GetContext()->GetUiContext()->GetWindowManager();

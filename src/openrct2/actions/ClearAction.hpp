@@ -78,7 +78,7 @@ private:
 
         auto x = (_range.GetLeft() + _range.GetRight()) / 2 + 16;
         auto y = (_range.GetTop() + _range.GetBottom()) / 2 + 16;
-        auto z = tile_element_height(x, y);
+        auto z = tile_element_height({ x, y });
         result->Position = CoordsXYZ(x, y, z);
 
         return result;
@@ -144,6 +144,8 @@ private:
         {
             tileEdited = false;
             tileElement = map_get_first_element_at(x, y);
+            if (tileElement == nullptr)
+                return totalCost;
             do
             {
                 auto type = tileElement->GetType();
@@ -152,62 +154,72 @@ private:
                     case TILE_ELEMENT_TYPE_PATH:
                         if (_itemsToClear & CLEARABLE_ITEMS::SCENERY_FOOTPATH)
                         {
-                            auto footpathRemoveAction = FootpathRemoveAction(x * 32, y * 32, tileElement->base_height);
+                            auto footpathRemoveAction = FootpathRemoveAction({ x * 32, y * 32, tileElement->base_height * 8 });
                             footpathRemoveAction.SetFlags(GetFlags());
 
-                            auto res = executing ? footpathRemoveAction.Execute() : footpathRemoveAction.Query();
-                            if (res->Error != GA_ERROR::OK)
-                                return MONEY32_UNDEFINED;
+                            auto res = executing ? GameActions::ExecuteNested(&footpathRemoveAction)
+                                                 : GameActions::QueryNested(&footpathRemoveAction);
 
-                            totalCost += res->Cost;
-                            tileEdited = executing;
+                            if (res->Error == GA_ERROR::OK)
+                            {
+                                totalCost += res->Cost;
+                                tileEdited = executing;
+                            }
                         }
                         break;
                     case TILE_ELEMENT_TYPE_SMALL_SCENERY:
                         if (_itemsToClear & CLEARABLE_ITEMS::SCENERY_SMALL)
                         {
                             auto removeSceneryAction = SmallSceneryRemoveAction(
-                                x * 32, y * 32, tileElement->base_height, tileElement->AsSmallScenery()->GetSceneryQuadrant(),
+                                { x * 32, y * 32, tileElement->base_height * 8 },
+                                tileElement->AsSmallScenery()->GetSceneryQuadrant(),
                                 tileElement->AsSmallScenery()->GetEntryIndex());
                             removeSceneryAction.SetFlags(GetFlags());
 
-                            auto res = executing ? removeSceneryAction.Execute() : removeSceneryAction.Query();
-                            if (res->Error != GA_ERROR::OK)
-                                return MONEY32_UNDEFINED;
+                            auto res = executing ? GameActions::ExecuteNested(&removeSceneryAction)
+                                                 : GameActions::QueryNested(&removeSceneryAction);
 
-                            totalCost += res->Cost;
-                            tileEdited = executing;
+                            if (res->Error == GA_ERROR::OK)
+                            {
+                                totalCost += res->Cost;
+                                tileEdited = executing;
+                            }
                         }
                         break;
                     case TILE_ELEMENT_TYPE_WALL:
                         if (_itemsToClear & CLEARABLE_ITEMS::SCENERY_SMALL)
                         {
-                            TileCoordsXYZD wallLocation = { x, y, tileElement->base_height, tileElement->GetDirection() };
+                            CoordsXYZD wallLocation = { x * 32, y * 32, tileElement->base_height * 8,
+                                                        tileElement->GetDirection() };
                             auto wallRemoveAction = WallRemoveAction(wallLocation);
                             wallRemoveAction.SetFlags(GetFlags());
 
-                            auto res = executing ? wallRemoveAction.Execute() : wallRemoveAction.Query();
-                            if (res->Error != GA_ERROR::OK)
-                                return MONEY32_UNDEFINED;
+                            auto res = executing ? GameActions::ExecuteNested(&wallRemoveAction)
+                                                 : GameActions::QueryNested(&wallRemoveAction);
 
-                            totalCost += res->Cost;
-                            tileEdited = executing;
+                            if (res->Error == GA_ERROR::OK)
+                            {
+                                totalCost += res->Cost;
+                                tileEdited = executing;
+                            }
                         }
                         break;
                     case TILE_ELEMENT_TYPE_LARGE_SCENERY:
                         if (_itemsToClear & CLEARABLE_ITEMS::SCENERY_LARGE)
                         {
                             auto removeSceneryAction = LargeSceneryRemoveAction(
-                                x * 32, y * 32, tileElement->base_height, tileElement->GetDirection(),
+                                { x * 32, y * 32, tileElement->base_height * 8, tileElement->GetDirection() },
                                 tileElement->AsLargeScenery()->GetSequenceIndex());
                             removeSceneryAction.SetFlags(GetFlags() | GAME_COMMAND_FLAG_PATH_SCENERY);
 
-                            auto res = executing ? removeSceneryAction.Execute() : removeSceneryAction.Query();
-                            if (res->Error != GA_ERROR::OK)
-                                return MONEY32_UNDEFINED;
+                            auto res = executing ? GameActions::ExecuteNested(&removeSceneryAction)
+                                                 : GameActions::QueryNested(&removeSceneryAction);
 
-                            totalCost += res->Cost;
-                            tileEdited = executing;
+                            if (res->Error == GA_ERROR::OK)
+                            {
+                                totalCost += res->Cost;
+                                tileEdited = executing;
+                            }
                         }
                         break;
                 }
@@ -231,9 +243,11 @@ private:
                 auto tileElement = map_get_first_element_at(x, y);
                 do
                 {
+                    if (tileElement == nullptr)
+                        break;
                     if (tileElement->GetType() == TILE_ELEMENT_TYPE_LARGE_SCENERY)
                     {
-                        tileElement->flags &= ~(1 << 6);
+                        tileElement->AsLargeScenery()->SetIsAccounted(false);
                     }
                 } while (!(tileElement++)->IsLastForTile());
             }
@@ -242,6 +256,7 @@ private:
 
     static bool MapCanClearAt(int32_t x, int32_t y)
     {
-        return (gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) || gCheatsSandboxMode || map_is_location_owned_or_has_rights(x, y);
+        return (gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) || gCheatsSandboxMode
+            || map_is_location_owned_or_has_rights({ x, y });
     }
 };

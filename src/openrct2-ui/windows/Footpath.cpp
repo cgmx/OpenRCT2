@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2018 OpenRCT2 developers
+ * Copyright (c) 2014-2019 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -15,6 +15,7 @@
 #include <openrct2/Game.h>
 #include <openrct2/Input.h>
 #include <openrct2/OpenRCT2.h>
+#include <openrct2/actions/FootpathPlaceAction.hpp>
 #include <openrct2/audio/audio.h>
 #include <openrct2/localisation/Localisation.h>
 #include <openrct2/object/ObjectLimits.h>
@@ -215,7 +216,7 @@ rct_window* window_footpath_open()
         return window;
     }
 
-    window = window_create(0, 29, 106, 381, &window_footpath_events, WC_FOOTPATH, 0);
+    window = window_create(ScreenCoordsXY(0, 29), 106, 381, &window_footpath_events, WC_FOOTPATH, 0);
     window->widgets = window_footpath_widgets;
     window->enabled_widgets = (1 << WIDX_CLOSE) | (1 << WIDX_FOOTPATH_TYPE) | (1 << WIDX_QUEUELINE_TYPE)
         | (1 << WIDX_DIRECTION_NW) | (1 << WIDX_DIRECTION_NE) | (1 << WIDX_DIRECTION_SW) | (1 << WIDX_DIRECTION_SE)
@@ -397,7 +398,7 @@ static void window_footpath_dropdown(rct_window* w, rct_widgetindex widgetIndex,
     gFootpathSelectedId = pathId;
     footpath_provisional_update();
     _window_footpath_cost = MONEY32_UNDEFINED;
-    window_invalidate(w);
+    w->Invalidate();
 }
 
 /**
@@ -562,9 +563,6 @@ static void window_footpath_update(rct_window* w)
  */
 static void window_footpath_invalidate(rct_window* w)
 {
-    int32_t selectedPath;
-    PathSurfaceEntry* pathType;
-
     // Press / unpress footpath and queue type buttons
     w->pressed_widgets &= ~(1 << WIDX_FOOTPATH_TYPE);
     w->pressed_widgets &= ~(1 << WIDX_QUEUELINE_TYPE);
@@ -577,12 +575,15 @@ static void window_footpath_invalidate(rct_window* w)
         : WWT_EMPTY;
 
     // Set footpath and queue type button images
-    selectedPath = gFootpathSelectedId;
-    pathType = get_path_surface_entry(selectedPath);
-
-    int32_t pathImage = pathType->preview;
-    // Editor-only paths might lack a queue image
-    int32_t queueImage = (pathType->flags & FOOTPATH_ENTRY_FLAG_SHOW_ONLY_IN_SCENARIO_EDITOR) ? pathImage : pathImage + 1;
+    auto pathImage = (uint32_t)SPR_NONE;
+    auto queueImage = (uint32_t)SPR_NONE;
+    auto pathEntry = get_path_surface_entry(gFootpathSelectedId);
+    if (pathEntry != nullptr)
+    {
+        pathImage = pathEntry->preview;
+        // Editor-only paths might lack a queue image
+        queueImage = (pathEntry->flags & FOOTPATH_ENTRY_FLAG_SHOW_ONLY_IN_SCENARIO_EDITOR) ? pathImage : pathImage + 1;
+    }
     window_footpath_widgets[WIDX_FOOTPATH_TYPE].image = pathImage;
     window_footpath_widgets[WIDX_QUEUELINE_TYPE].image = queueImage;
 }
@@ -610,16 +611,9 @@ static void window_footpath_paint(rct_window* w, rct_drawpixelinfo* dpi)
         }
         int32_t image = ConstructionPreviewImages[slope][direction];
 
-        int32_t selectedPath = gFootpathSelectedId;
+        int32_t selectedPath = gFootpathSelectedId + (MAX_PATH_OBJECTS * gFootpathSelectedType);
         PathSurfaceEntry* pathType = get_path_surface_entry(selectedPath);
-        if (gFootpathSelectedType == SELECTED_PATH_TYPE_NORMAL)
-        {
-            image += pathType->image;
-        }
-        else
-        {
-            image += pathType->queue_image;
-        }
+        image += pathType->image;
 
         // Draw construction image
         int32_t x = w->x + (window_footpath_widgets[WIDX_CONSTRUCT].left + window_footpath_widgets[WIDX_CONSTRUCT].right) / 2;
@@ -719,8 +713,8 @@ static void window_footpath_set_provisional_path_at_point(int32_t x, int32_t y)
     map_invalidate_selection_rect();
     gMapSelectFlags &= ~MAP_SELECT_FLAG_ENABLE_ARROW;
 
-    int32_t interactionType;
-    TileElement* tileElement;
+    int32_t interactionType{};
+    TileElement* tileElement{};
     LocationXY16 mapCoord = {};
     get_map_coordinates_from_pos(
         x, y, VIEWPORT_INTERACTION_MASK_FOOTPATH & VIEWPORT_INTERACTION_MASK_TERRAIN, &mapCoord.x, &mapCoord.y,
@@ -728,7 +722,7 @@ static void window_footpath_set_provisional_path_at_point(int32_t x, int32_t y)
     x = mapCoord.x;
     y = mapCoord.y;
 
-    if (interactionType == VIEWPORT_INTERACTION_ITEM_NONE)
+    if (interactionType == VIEWPORT_INTERACTION_ITEM_NONE || tileElement == nullptr)
     {
         gMapSelectFlags &= ~MAP_SELECT_FLAG_ENABLE;
         footpath_provisional_update();
@@ -757,13 +751,27 @@ static void window_footpath_set_provisional_path_at_point(int32_t x, int32_t y)
         switch (interactionType)
         {
             case VIEWPORT_INTERACTION_ITEM_TERRAIN:
-                slope = DefaultPathSlope[tileElement->AsSurface()->GetSlope() & TILE_ELEMENT_SURFACE_RAISED_CORNERS_MASK];
+            {
+                auto surfaceElement = tileElement->AsSurface();
+                if (surfaceElement != nullptr)
+                {
+                    slope = DefaultPathSlope[surfaceElement->GetSlope() & TILE_ELEMENT_SURFACE_RAISED_CORNERS_MASK];
+                }
                 break;
+            }
             case VIEWPORT_INTERACTION_ITEM_FOOTPATH:
-                slope = tileElement->AsPath()->GetSlopeDirection();
-                if (tileElement->AsPath()->IsSloped())
-                    slope |= FOOTPATH_PROPERTIES_FLAG_IS_SLOPED;
+            {
+                auto pathElement = tileElement->AsPath();
+                if (pathElement != nullptr)
+                {
+                    slope = pathElement->GetSlopeDirection();
+                    if (pathElement->IsSloped())
+                    {
+                        slope |= FOOTPATH_PROPERTIES_FLAG_IS_SLOPED;
+                    }
+                }
                 break;
+            }
         }
         uint8_t z = tileElement->base_height;
         if (slope & RAISE_FOOTPATH_FLAG)
@@ -833,7 +841,7 @@ static void window_footpath_set_selection_start_bridge_at_point(int32_t screenX,
  */
 static void window_footpath_place_path_at_point(int32_t x, int32_t y)
 {
-    int32_t interactionType, currentType, selectedType, z, cost;
+    int32_t interactionType, currentType, selectedType, z;
     TileElement* tileElement;
 
     if (_footpathErrorOccured)
@@ -880,19 +888,22 @@ static void window_footpath_place_path_at_point(int32_t x, int32_t y)
 
     // Try and place path
     gGameCommandErrorTitle = STR_CANT_BUILD_FOOTPATH_HERE;
-    cost = footpath_place(selectedType, x, y, z, currentType, GAME_COMMAND_FLAG_APPLY);
-
-    if (cost == MONEY32_UNDEFINED)
-    {
-        _footpathErrorOccured = true;
-    }
-    else if (gFootpathPrice != 0)
-    {
-        // bp = RCT2_ADDRESS_COMMAND_MAP_Z
-        // dx = RCT2_ADDRESS_COMMAND_MAP_Y
-        // cx = RCT2_ADDRESS_COMMAND_MAP_X
-        audio_play_sound_at_location(SOUND_PLACE_ITEM, gCommandPosition.x, gCommandPosition.y, gCommandPosition.z);
-    }
+    auto footpathPlaceAction = FootpathPlaceAction({ x, y, z * 8 }, currentType, selectedType);
+    footpathPlaceAction.SetCallback([](const GameAction* ga, const GameActionResult* result) {
+        if (result->Error == GA_ERROR::OK)
+        {
+            // Don't play sound if it is no cost to prevent multiple sounds. TODO: make this work in no money scenarios
+            if (result->Cost != 0)
+            {
+                audio_play_sound_at_location(SoundId::PlaceItem, result->Position);
+            }
+        }
+        else
+        {
+            _footpathErrorOccured = true;
+        }
+    });
+    GameActions::Execute(&footpathPlaceAction);
 }
 
 /**
@@ -968,43 +979,44 @@ static void window_footpath_construct()
     footpath_get_next_path_info(&type, &x, &y, &z, &slope);
 
     gGameCommandErrorTitle = STR_CANT_BUILD_FOOTPATH_HERE;
-    money32 cost = footpath_place_remove_intersecting(
-        type, x, y, z, slope, GAME_COMMAND_FLAG_APPLY, gFootpathConstructDirection);
-
-    if (cost != MONEY32_UNDEFINED)
-    {
-        audio_play_sound_at_location(
-            SOUND_PLACE_ITEM, gFootpathConstructFromPosition.x, gFootpathConstructFromPosition.y,
-            gFootpathConstructFromPosition.z);
-
-        if (gFootpathConstructSlope == 0)
+    auto footpathPlaceAction = FootpathPlaceAction({ x, y, z * 8 }, slope, type, gFootpathConstructDirection);
+    footpathPlaceAction.SetCallback([=](const GameAction* ga, const GameActionResult* result) {
+        if (result->Error == GA_ERROR::OK)
         {
-            gFootpathConstructValidDirections = 0xFF;
-        }
-        else
-        {
-            gFootpathConstructValidDirections = gFootpathConstructDirection;
-        }
+            audio_play_sound_at_location(SoundId::PlaceItem, result->Position);
 
-        if (gFootpathGroundFlags & ELEMENT_IS_UNDERGROUND)
-        {
-            viewport_set_visibility(1);
+            if (gFootpathConstructSlope == 0)
+            {
+                gFootpathConstructValidDirections = 0xFF;
+            }
+            else
+            {
+                gFootpathConstructValidDirections = gFootpathConstructDirection;
+            }
+
+            if (gFootpathGroundFlags & ELEMENT_IS_UNDERGROUND)
+            {
+                viewport_set_visibility(1);
+            }
+
+            // If we have just built an upwards slope, the next path to construct is
+            // a bit higher. Note that the z returned by footpath_get_next_path_info
+            // already is lowered if we are building a downwards slope.
+            if (gFootpathConstructSlope == 2)
+            {
+                gFootpathConstructFromPosition.z = (z + 2) * 8;
+            }
+            else
+            {
+                gFootpathConstructFromPosition.z = z * 8;
+            }
+
+            gFootpathConstructFromPosition.x = x;
+            gFootpathConstructFromPosition.y = y;
         }
-
-        // If we have just built an upwards slope, the next path to construct is
-        // a bit higher. Note that the z returned by footpath_get_next_path_info
-        // already is lowered if we are building a downwards slope.
-        if (gFootpathConstructSlope == 2)
-        {
-            z += 2;
-        }
-
-        gFootpathConstructFromPosition.x = x;
-        gFootpathConstructFromPosition.y = y;
-        gFootpathConstructFromPosition.z = z << 3;
-    }
-
-    window_footpath_set_enabled_and_pressed_widgets();
+        window_footpath_set_enabled_and_pressed_widgets();
+    });
+    GameActions::Execute(&footpathPlaceAction);
 }
 
 /**
@@ -1082,6 +1094,8 @@ static TileElement* footpath_get_tile_element_to_remove()
     tileElement = map_get_first_element_at(x, y);
     do
     {
+        if (tileElement == nullptr)
+            break;
         if (tileElement->GetType() == TILE_ELEMENT_TYPE_PATH)
         {
             if (tileElement->base_height == z)
@@ -1153,9 +1167,9 @@ static void window_footpath_set_enabled_and_pressed_widgets()
         gMapSelectFlags |= MAP_SELECT_FLAG_GREEN;
 
         int32_t direction = gFootpathConstructDirection;
-        gMapSelectionTiles[0].x = gFootpathConstructFromPosition.x + CoordsDirectionDelta[direction].x;
-        gMapSelectionTiles[0].y = gFootpathConstructFromPosition.y + CoordsDirectionDelta[direction].y;
-        gMapSelectionTiles[1].x = -1;
+        gMapSelectionTiles.clear();
+        gMapSelectionTiles.push_back({ gFootpathConstructFromPosition.x + CoordsDirectionDelta[direction].x,
+                                       gFootpathConstructFromPosition.y + CoordsDirectionDelta[direction].y });
         map_invalidate_map_selection_tiles();
     }
 
@@ -1206,7 +1220,7 @@ static void window_footpath_set_enabled_and_pressed_widgets()
 
     w->pressed_widgets = pressedWidgets;
     w->disabled_widgets = disabledWidgets;
-    window_invalidate(w);
+    w->Invalidate();
 }
 
 /**

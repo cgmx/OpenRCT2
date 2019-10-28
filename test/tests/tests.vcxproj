@@ -58,12 +58,14 @@
   <ItemGroup>
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="CryptTests.cpp" />
+    <ClCompile Include="Endianness.cpp" />
     <ClCompile Include="LanguagePackTest.cpp" />
     <ClCompile Include="ImageImporterTests.cpp" />
     <ClCompile Include="IniReaderTest.cpp" />
     <ClCompile Include="IniWriterTest.cpp" />
     <ClCompile Include="Localisation.cpp" />
     <ClCompile Include="MultiLaunch.cpp" />
+    <ClCompile Include="NetworkLoadSave.cpp" />
     <ClCompile Include="ReplayTests.cpp" />
     <ClCompile Include="Pathfinding.cpp" />
     <ClCompile Include="RideRatings.cpp" />
