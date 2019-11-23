@@ -26,11 +26,11 @@
 #include <openrct2/world/Scenery.h>
 #include <openrct2/world/SmallScenery.h>
 
-#define WINDOW_SCENERY_WIDTH 634
-#define WINDOW_SCENERY_HEIGHT 180
-#define SCENERY_BUTTON_WIDTH 66
-#define SCENERY_BUTTON_HEIGHT 80
-#define SCENERY_WINDOW_TABS (MAX_SCENERY_GROUP_OBJECTS + 1) // The + 1 is for the 'Miscellaneous' tab
+constexpr int32_t WINDOW_SCENERY_WIDTH = 634;
+constexpr int32_t WINDOW_SCENERY_HEIGHT = 180;
+constexpr int32_t SCENERY_BUTTON_WIDTH = 66;
+constexpr int32_t SCENERY_BUTTON_HEIGHT = 80;
+constexpr int32_t SCENERY_WINDOW_TABS = MAX_SCENERY_GROUP_OBJECTS + 1; // The + 1 is for the 'Miscellaneous' tab
 
 // clang-format off
 enum {
@@ -64,8 +64,8 @@ static void window_scenery_dropdown(rct_window *w, rct_widgetindex widgetIndex, 
 static void window_scenery_update(rct_window *w);
 static void window_scenery_periodic_update(rct_window *w);
 static void window_scenery_scrollgetsize(rct_window *w, int32_t scrollIndex, int32_t *width, int32_t *height);
-static void window_scenery_scrollmousedown(rct_window *w, int32_t scrollIndex, int32_t x, int32_t y);
-static void window_scenery_scrollmouseover(rct_window *w, int32_t scrollIndex, int32_t x, int32_t y);
+static void window_scenery_scrollmousedown(rct_window *w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
+static void window_scenery_scrollmouseover(rct_window *w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
 static void window_scenery_tooltip(rct_window* w, rct_widgetindex widgetIndex, rct_string_id *stringId);
 static void window_scenery_invalidate(rct_window *w);
 static void window_scenery_paint(rct_window *w, rct_drawpixelinfo *dpi);
@@ -855,9 +855,9 @@ void window_scenery_scrollgetsize(rct_window* w, int32_t scrollIndex, int32_t* w
     *height = window_scenery_rows_height(rows);
 }
 
-static uint16_t get_scenery_id_by_cursor_pos(int16_t x, int16_t y)
+static uint16_t get_scenery_id_by_cursor_pos(ScreenCoordsXY screenCoords)
 {
-    int32_t tabSceneryIndex = x / SCENERY_BUTTON_WIDTH + (y / SCENERY_BUTTON_HEIGHT) * 9;
+    int32_t tabSceneryIndex = screenCoords.x / SCENERY_BUTTON_WIDTH + (screenCoords.y / SCENERY_BUTTON_HEIGHT) * 9;
     uint8_t tabIndex = gWindowSceneryActiveTabIndex;
 
     int32_t itemCounter = 0;
@@ -878,9 +878,9 @@ static uint16_t get_scenery_id_by_cursor_pos(int16_t x, int16_t y)
  *
  *  rct2: 0x006E1C4A
  */
-void window_scenery_scrollmousedown(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+void window_scenery_scrollmousedown(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
-    uint16_t sceneryId = get_scenery_id_by_cursor_pos(x, y);
+    uint16_t sceneryId = get_scenery_id_by_cursor_pos(screenCoords);
     if (sceneryId == WINDOW_SCENERY_TAB_SELECTION_UNDEFINED)
         return;
 
@@ -899,9 +899,9 @@ void window_scenery_scrollmousedown(rct_window* w, int32_t scrollIndex, int32_t 
  *
  *  rct2: 0x006E1BB8
  */
-void window_scenery_scrollmouseover(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+void window_scenery_scrollmouseover(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
-    uint16_t sceneryId = get_scenery_id_by_cursor_pos(x, y);
+    uint16_t sceneryId = get_scenery_id_by_cursor_pos(screenCoords);
     if (sceneryId != WINDOW_SCENERY_TAB_SELECTION_UNDEFINED)
     {
         w->scenery.selected_scenery_id = sceneryId;

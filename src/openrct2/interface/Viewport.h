@@ -10,6 +10,7 @@
 #ifndef _VIEWPORT_H_
 #define _VIEWPORT_H_
 
+#include "../core/Optional.hpp"
 #include "../world/Location.hpp"
 #include "Window.h"
 
@@ -139,9 +140,9 @@ void viewport_paint(
 
 void viewport_adjust_for_map_height(int16_t* x, int16_t* y, int16_t* z);
 
-LocationXY16 screen_coord_to_viewport_coord(rct_viewport* viewport, uint16_t x, uint16_t y);
-LocationXY16 viewport_coord_to_map_coord(int32_t x, int32_t y, int32_t z);
-void screen_pos_to_map_pos(int16_t* x, int16_t* y, int32_t* direction);
+LocationXY16 screen_coord_to_viewport_coord(rct_viewport* viewport, ScreenCoordsXY screenCoords);
+CoordsXY viewport_coord_to_map_coord(int32_t x, int32_t y, int32_t z);
+CoordsXY screen_pos_to_map_pos(ScreenCoordsXY screenCoords, int32_t* direction);
 
 void show_gridlines();
 void hide_gridlines();
@@ -154,8 +155,11 @@ void viewport_set_visibility(uint8_t mode);
 void get_map_coordinates_from_pos(
     int32_t screenX, int32_t screenY, int32_t flags, int16_t* x, int16_t* y, int32_t* interactionType,
     TileElement** tileElement, rct_viewport** viewport);
+void get_map_coordinates_from_pos(
+    ScreenCoordsXY screenCoords, int32_t flags, CoordsXY& mapCoords, int32_t* interactionType, TileElement** tileElement,
+    rct_viewport** viewport);
 void get_map_coordinates_from_pos_window(
-    rct_window* window, int32_t screenX, int32_t screenY, int32_t flags, int16_t* x, int16_t* y, int32_t* interactionType,
+    rct_window* window, ScreenCoordsXY screenCoords, int32_t flags, CoordsXY& mapCoords, int32_t* interactionType,
     TileElement** tileElement, rct_viewport** viewport);
 
 int32_t viewport_interaction_get_item_left(int32_t x, int32_t y, viewport_interaction_info* info);
@@ -165,18 +169,17 @@ int32_t viewport_interaction_get_item_right(int32_t x, int32_t y, viewport_inter
 int32_t viewport_interaction_right_over(int32_t x, int32_t y);
 int32_t viewport_interaction_right_click(int32_t x, int32_t y);
 
-void sub_68A15E(int32_t screenX, int32_t screenY, int16_t* x, int16_t* y);
-void sub_68B2B7(paint_session* session, int32_t x, int32_t y);
+CoordsXY sub_68A15E(ScreenCoordsXY screenCoords);
+void sub_68B2B7(paint_session* session, CoordsXY mapCoords);
 
 void viewport_invalidate(rct_viewport* viewport, int32_t left, int32_t top, int32_t right, int32_t bottom);
 
-void screen_get_map_xy(int32_t screenX, int32_t screenY, int16_t* x, int16_t* y, rct_viewport** viewport);
-void screen_get_map_xy_with_z(int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY);
-void screen_get_map_xy_quadrant(int16_t screenX, int16_t screenY, int16_t* mapX, int16_t* mapY, uint8_t* quadrant);
-void screen_get_map_xy_quadrant_with_z(
-    int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY, uint8_t* quadrant);
-void screen_get_map_xy_side(int16_t screenX, int16_t screenY, int16_t* mapX, int16_t* mapY, uint8_t* side);
-void screen_get_map_xy_side_with_z(int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY, uint8_t* side);
+CoordsXY screen_get_map_xy(ScreenCoordsXY screenCoords, rct_viewport** viewport);
+CoordsXY screen_get_map_xy_with_z(ScreenCoordsXY screenCoords, int16_t z);
+CoordsXY screen_get_map_xy_quadrant(ScreenCoordsXY screenCoords, uint8_t* quadrant);
+std::optional<CoordsXY> screen_get_map_xy_quadrant_with_z(ScreenCoordsXY screenCoords, int16_t z, uint8_t* quadrant);
+CoordsXY screen_get_map_xy_side(ScreenCoordsXY screenCoords, uint8_t* side);
+std::optional<CoordsXY> screen_get_map_xy_side_with_z(ScreenCoordsXY screenCoords, int16_t z, uint8_t* side);
 
 uint8_t get_current_rotation();
 int16_t get_height_marker_offset();

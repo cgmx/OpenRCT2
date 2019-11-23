@@ -69,16 +69,16 @@ enum WINDOW_WATER_WIDGET_IDX {
     WIDX_CANCEL
 };
 
-#define WW 200
-#define WH 120
-#define BY 32
-#define BY2 70
-#define WS 16
-#define WHA ((WW-WS*2)/2)
+constexpr int32_t WW = 200;
+constexpr int32_t WH = 120;
+constexpr int32_t BY = 32;
+constexpr int32_t BY2 = 70;
+constexpr int32_t WS = 16;
+constexpr int32_t WHA = (WW-WS*2)/2;
 
 static bool _window_title_command_editor_insert;
 static int32_t _window_title_command_editor_index;
-#define BUF_SIZE 50
+constexpr size_t BUF_SIZE = 50;
 static char textbox1Buffer[BUF_SIZE];
 static char textbox2Buffer[BUF_SIZE];
 static TitleCommand command = { TITLE_SCRIPT_LOAD, { 0 } };
@@ -115,14 +115,14 @@ static void window_title_command_editor_mouseup(rct_window * w, rct_widgetindex 
 static void window_title_command_editor_mousedown(rct_window * w, rct_widgetindex widgetIndex, rct_widget * widget);
 static void window_title_command_editor_dropdown(rct_window * w, rct_widgetindex widgetIndex, int32_t dropdownIndex);
 static void window_title_command_editor_update(rct_window * w);
-static void window_title_command_editor_tool_down(rct_window * w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
+static void window_title_command_editor_tool_down(rct_window * w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords);
 static void window_title_command_editor_invalidate(rct_window * w);
 static void window_title_command_editor_paint(rct_window * w, rct_drawpixelinfo * dpi);
 static void window_title_command_editor_textinput(rct_window * w, rct_widgetindex widgetIndex, char * text);
 static void scenario_select_callback(const utf8 * path);
 static int32_t get_command_info_index(int32_t index);
 static TITLE_COMMAND_ORDER get_command_info(int32_t index);
-static LocationXY16 get_location();
+static TileCoordsXY get_location();
 static uint8_t get_zoom();
 
 static rct_window_event_list window_title_command_editor_events = {
@@ -187,26 +187,25 @@ static TITLE_COMMAND_ORDER get_command_info(int32_t index)
     return _window_title_command_editor_orders[0];
 }
 
-static LocationXY16 get_location()
+static TileCoordsXY get_location()
 {
-    LocationXY16 mapCoord = {};
+    TileCoordsXY tileCoord = {};
     rct_window* w = window_get_main();
     if (w != nullptr)
     {
         int32_t interactionType;
         TileElement* tileElement;
-
+        CoordsXY mapCoord;
         get_map_coordinates_from_pos_window(
-            w, w->viewport->view_width / 2, w->viewport->view_height / 2, VIEWPORT_INTERACTION_MASK_TERRAIN, &mapCoord.x,
-            &mapCoord.y, &interactionType, &tileElement, nullptr);
+            w, { w->viewport->view_width / 2, w->viewport->view_height / 2 }, VIEWPORT_INTERACTION_MASK_TERRAIN, mapCoord,
+            &interactionType, &tileElement, nullptr);
         mapCoord.x -= 16;
-        mapCoord.x /= 32;
         mapCoord.y -= 16;
-        mapCoord.y /= 32;
-        mapCoord.x++;
-        mapCoord.y++;
+        tileCoord = TileCoordsXY{ mapCoord };
+        tileCoord.x++;
+        tileCoord.y++;
     }
-    return mapCoord;
+    return tileCoord;
 }
 
 static uint8_t get_zoom()
@@ -324,9 +323,9 @@ static void window_title_command_editor_mouseup(rct_window* w, rct_widgetindex w
         case WIDX_GET:
             if (command.Type == TITLE_SCRIPT_LOCATION)
             {
-                LocationXY16 mapCoord = get_location();
-                command.X = (uint8_t)mapCoord.x;
-                command.Y = (uint8_t)mapCoord.y;
+                auto tileCoord = get_location();
+                command.X = (uint8_t)tileCoord.x;
+                command.Y = (uint8_t)tileCoord.y;
                 snprintf(textbox1Buffer, BUF_SIZE, "%d", command.X);
                 snprintf(textbox2Buffer, BUF_SIZE, "%d", command.Y);
             }
@@ -463,9 +462,9 @@ static void window_title_command_editor_dropdown(rct_window* w, rct_widgetindex 
             {
                 case TITLE_SCRIPT_LOCATION:
                 {
-                    LocationXY16 mapCoord = get_location();
-                    command.X = (uint8_t)mapCoord.x;
-                    command.Y = (uint8_t)mapCoord.y;
+                    auto tileCoord = get_location();
+                    command.X = (uint8_t)tileCoord.x;
+                    command.Y = (uint8_t)tileCoord.y;
                     snprintf(textbox1Buffer, BUF_SIZE, "%d", command.X);
                     snprintf(textbox2Buffer, BUF_SIZE, "%d", command.Y);
                     break;
@@ -610,10 +609,10 @@ static void window_title_command_editor_update(rct_window* w)
     }
 }
 
-static void window_title_command_editor_tool_down(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_title_command_editor_tool_down(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords)
 {
     viewport_interaction_info info;
-    viewport_interaction_get_item_left(x, y, &info);
+    viewport_interaction_get_item_left(screenCoords.x, screenCoords.y, &info);
 
     if (info.type == VIEWPORT_INTERACTION_ITEM_SPRITE)
     {

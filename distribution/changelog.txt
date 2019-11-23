@@ -1,5 +1,7 @@
 0.2.4+ (in development)
 ------------------------------------------------------------------------
+- Change: [#1164] Use available translations for shortcut key bindings.
+- Fix: [#10228] Can't import RCT1 Deluxe from Steam.
 
 0.2.4 (2019-10-28)
 ------------------------------------------------------------------------
@@ -35,6 +37,8 @@
 - Fix: [#10036] Do not allocate large chunks of memory for save file classification.
 - Fix: [#10106] Ride circuits should not be used for modes that do not support it.
 - Fix: [#10149] Desync in headless mode with rides that create smoke particles.
+- Fix: [#10249] Desync because of ride crashes and simulation mode.
+- Fix: [#10256] Desync because of advancing ahead of server ticks during map change.
 - Improved: [#9466] Add the rain weather effect to the OpenGL renderer.
 - Improved: [#9987] Minimum load rounding.
 - Improved: [#10125] Better support for high DPI screens.

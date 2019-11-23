@@ -144,7 +144,7 @@ struct CoordsXY
 struct TileCoordsXY
 {
     TileCoordsXY() = default;
-    TileCoordsXY(int32_t x_, int32_t y_)
+    constexpr TileCoordsXY(int32_t x_, int32_t y_)
         : x(x_)
         , y(y_)
     {
@@ -212,6 +212,11 @@ struct CoordsXYZ : public CoordsXY
         : CoordsXY(c)
         , z(_z)
     {
+    }
+
+    bool operator==(const CoordsXYZ& other) const
+    {
+        return x == other.x && y == other.y && z == other.z;
     }
 };
 
@@ -321,6 +326,16 @@ struct CoordsXYZD : public CoordsXYZ
         : CoordsXYZ(_x, _y, _z)
         , direction(_d)
     {
+    }
+
+    bool operator==(const CoordsXYZD& other) const
+    {
+        return x == other.x && y == other.y && z == other.z && direction == other.direction;
+    }
+
+    bool operator!=(const CoordsXYZD& other) const
+    {
+        return !(*this == other);
     }
 
     bool isNull() const

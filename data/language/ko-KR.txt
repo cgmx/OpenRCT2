@@ -321,10 +321,10 @@ STR_0936    :공원 입구가 있습니다
 STR_0937    :{SMALLFONT}{BLACK}보기 설정
 STR_0938    :{SMALLFONT}{BLACK}지형의 높이나 경사를 조정합니다.
 STR_0939    :지하/내부 시야
-STR_0940    :땅 안 보이기
-STR_0941    :절벽 안 보이기
-STR_0942    :놀이기구 안 보이기
-STR_0943    :풍경 안 보이기
+STR_0940    :땅 표면 감추기
+STR_0941    :절벽 감추기
+STR_0942    :놀이기구 감추기
+STR_0943    :풍경 감추기
 STR_0944    :저장
 STR_0945    :저장 안 함
 STR_0946    :취소
@@ -403,10 +403,10 @@ STR_1018    :변경할 수 없습니다...
 STR_1019    :변경할 수 없습니다...
 STR_1020    :변경할 수 없습니다...
 STR_1021    :{POP16}{POP16}{POP16}{POP16}{STRINGID}
-STR_1022    :1대당 {POP16}{POP16}{POP16}{COMMA16}량의 차량
-STR_1023    :1대당 {POP16}{POP16}{POP16}{COMMA16}량의 차량
-STR_1024    :1대당 {COMMA16}량의 차량
-STR_1025    :1대당 {COMMA16}량의 차량
+STR_1022    :1대당 차량 {POP16}{POP16}{POP16}{COMMA16}개
+STR_1023    :1대당 차량 {POP16}{POP16}{POP16}{COMMA16}개
+STR_1024    :1대당 차량 {COMMA16}개
+STR_1025    :1대당 차량 {COMMA16}개
 STR_1026    :탑승장이 너무 깁니다!
 STR_1027    :{SMALLFONT}{BLACK}여기로 이동합니다
 STR_1028    :지도 끝을 벗어납니다!
@@ -645,10 +645,10 @@ STR_1260    :탑승장
 STR_1261    :탑승장 {COMMA16}개
 STR_1262    :탑승장 {COMMA16}개
 STR_1263    :탑승장 {COMMA16}
-STR_1264    :대의 차량
-STR_1265    :대의 차량
-STR_1266    :차3
-STR_1267    :차4
+STR_1264    :차량
+STR_1265    :차량
+STR_1266    :차량
+STR_1267    :차량
 STR_1268    :차량 {COMMA16}대
 STR_1269    :차량 {COMMA16}대
 STR_1270    :차 {COMMA16}
@@ -1862,39 +1862,14 @@ STR_2521    :직원 목록을 보여줍니다
 STR_2522    :최근 메시지를 보여줍니다
 STR_2523    :지도 보기
 STR_2524    :스크린 샷
-### The following need to be reordered to match SDL_keycode layout.
-STR_2525    :???
-STR_2526    :???
-STR_2527    :???
-STR_2528    :???
-STR_2529    :???
-STR_2530    :???
-STR_2531    :???
-STR_2532    :???
 STR_2533    :백스페이스
 STR_2534    :탭
-STR_2535    :???
-STR_2536    :???
 STR_2537    :Clear
 STR_2538    :Return
-STR_2539    :???
-STR_2540    :???
-STR_2541    :???
-STR_2542    :???
 STR_2543    :Alt/Menu
 STR_2544    :Pause
 STR_2545    :Caps
-STR_2546    :???
-STR_2547    :???
-STR_2548    :???
-STR_2549    :???
-STR_2550    :???
-STR_2551    :???
 STR_2552    :Escape
-STR_2553    :???
-STR_2554    :???
-STR_2555    :???
-STR_2556    :???
 STR_2557    :스페이스바
 STR_2558    :PgUp
 STR_2559    :PgDn
@@ -1911,54 +1886,7 @@ STR_2569    :Snapshot
 STR_2570    :Insert
 STR_2571    :Delete
 STR_2572    :Help
-STR_2573    :0
-STR_2574    :1
-STR_2575    :2
-STR_2576    :3
-STR_2577    :4
-STR_2578    :5
-STR_2579    :6
-STR_2580    :7
-STR_2581    :8
-STR_2582    :9
-STR_2583    :???
-STR_2584    :???
-STR_2585    :???
-STR_2586    :???
-STR_2587    :???
-STR_2588    :???
-STR_2589    :???
-STR_2590    :A
-STR_2591    :B
-STR_2592    :C
-STR_2593    :D
-STR_2594    :E
-STR_2595    :F
-STR_2596    :G
-STR_2597    :H
-STR_2598    :I
-STR_2599    :J
-STR_2600    :K
-STR_2601    :L
-STR_2602    :M
-STR_2603    :N
-STR_2604    :O
-STR_2605    :P
-STR_2606    :Q
-STR_2607    :R
-STR_2608    :S
-STR_2609    :T
-STR_2610    :U
-STR_2611    :V
-STR_2612    :W
-STR_2613    :X
-STR_2614    :Y
-STR_2615    :Z
-STR_2616    :???
-STR_2617    :???
 STR_2618    :Menu
-STR_2619    :???
-STR_2620    :???
 STR_2621    :NumPad 0
 STR_2622    :NumPad 1
 STR_2623    :NumPad 2
@@ -1971,53 +1899,11 @@ STR_2629    :NumPad 8
 STR_2630    :NumPad 9
 STR_2631    :NumPad *
 STR_2632    :NumPad +
-STR_2633    :???
 STR_2634    :NumPad -
 STR_2635    :NumPad .
 STR_2636    :NumPad /
-STR_2637    :F1
-STR_2638    :F2
-STR_2639    :F3
-STR_2640    :F4
-STR_2641    :F5
-STR_2642    :F6
-STR_2643    :F7
-STR_2644    :F8
-STR_2645    :F9
-STR_2646    :F10
-STR_2647    :F11
-STR_2648    :F12
-STR_2649    :F13
-STR_2650    :F14
-STR_2651    :F15
-STR_2652    :F16
-STR_2653    :F17
-STR_2654    :F18
-STR_2655    :F19
-STR_2656    :F20
-STR_2657    :F21
-STR_2658    :F22
-STR_2659    :F23
-STR_2660    :F24
-STR_2661    :???
-STR_2662    :???
-STR_2663    :???
-STR_2664    :???
-STR_2665    :???
-STR_2666    :???
-STR_2667    :???
-STR_2668    :???
 STR_2669    :NumLock
 STR_2670    :Scroll
-STR_2671    :???
-STR_2672    :???
-STR_2673    :???
-STR_2674    :???
-STR_2675    :???
-STR_2676    :???
-STR_2677    :???
-STR_2678    :???
-STR_2679    :???
 STR_2680    :모든 연구가 완료되었습니다
 STR_2681    :{MEDIUMFONT}{BLACK}돈 {CURRENCY} 늘리기
 STR_2684    :{SMALLFONT}{BLACK}손님을 대규모로 부릅니다
@@ -2033,9 +1919,6 @@ STR_2693    :지형:
 STR_2694    :생성
 STR_2695    :무작위 지형
 STR_2696    :나무 심기
-STR_2697    :???
-STR_2698    :???
-STR_2699    :???
 STR_2700    :자동 저장 주기:
 STR_2701    :매 1분마다
 STR_2702    :매 5분마다
@@ -2047,13 +1930,6 @@ STR_2707    :운영체제 파일 브라우저 사용
 STR_2708    :{WINDOW_COLOUR_1}정말 {STRINGID}에 덮어씌우시겠습니까?
 STR_2709    :덮어쓰기
 STR_2710    :파일 이름을 입력하세요.
-STR_2711    :;
-STR_2712    :=
-STR_2713    :,
-STR_2714    :-
-STR_2715    :.
-STR_2716    :/
-STR_2717    :'
 STR_2718    :상위 폴더
 STR_2719    :새 파일
 STR_2720    :{UINT16}초
@@ -2080,10 +1956,6 @@ STR_2740    :롤러코스터 타이쿤 1
 STR_2741    :롤러코스터 타이쿤 2
 STR_2742    :css50.dat 파일을 찾을 수 없습니다
 STR_2743    :'data/css17.dat' 파일을 RCT1 설치 폴더에서 복사하여 RCT2가 설치된 폴더 안에 'data/css50.dat' 이름으로 바꾸어 넣거나, 고급 탭에서 RCT1의 경로를 올바르게 지정하세요.
-STR_2744    :[
-STR_2745    :\
-STR_2746    :]
-STR_2747    :”
 STR_2749    :내 새 시나리오
 # New strings used in the cheats window previously these were ???
 STR_2750    :모든 항목을 위로
@@ -3366,8 +3238,8 @@ STR_5907    :{SMALLFONT}{BLACK}이 설정을 켜면, 화면을 게임 화면 중
 STR_5908    :놀이기구 종류 임의 변경 허용
 STR_5909    :{SMALLFONT}{BLACK}놀이기구 종류를 자유롭게 바꾸는 것을 허용합니다. 게임이 튕길 수 있습니다.
 STR_5910    :적용
-STR_5911    :보도 숨기기
-STR_5912    :보도 숨기기
+STR_5911    :보도 감추기
+STR_5912    :보도 감추기
 STR_5913    :대화
 STR_5914    :알 수 없는 놀이기구
 STR_5915    :플레이어
@@ -3377,8 +3249,8 @@ STR_5918    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{COM
 STR_5919    :{COMMA16}
 STR_5920    :날씨 효과 표현
 STR_5921    :{SMALLFONT}{BLACK}이 설정을 켜면, 폭풍우가 치는 동안 비와 흐린 색상을 표현합니다.
-STR_5922    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{SMALLFONT}{BLACK}최대 {STRINGID}
-STR_5923    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{SMALLFONT}{BLACK}열차당 최대 {COMMA16}{STRINGID}
+STR_5922    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{SMALLFONT}{BLACK}최대 {STRINGID}까지 사용 가능
+STR_5923    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{BLACK}1대당 {STRINGID} {PUSH16}{PUSH16}{COMMA16}개까지 사용 가능
 STR_5924    :지면 상세정보
 STR_5925    :보도 상세정보
 STR_5926    :트랙 상세정보
@@ -3458,12 +3330,12 @@ STR_5999    :이 값으로 돈 지정
 STR_6000    :새로운 값을 입력하세요
 STR_6001    :가로등 효과 (실험적 기능)
 STR_6002    :{SMALLFONT}{BLACK}가로등과 놀이기구가 밤에 불이 켜지도록 합니다.{NEWLINE}드로잉 엔진 설정을 하드웨어 디스플레이로 설정해야 합니다.
-STR_6003    :특정 높이 잘라 보기
-STR_6004    :특정 높이 잘라 보기
+STR_6003    :잘라 보기
+STR_6004    :잘라 보기
 STR_6005    :잘라 보기 활성화
-STR_6006    :{SMALLFONT}{BLACK}잘라보기 기능을 이용해서 절단할 높이보다 아래에 있는 요소만 표시하거나(상하 잘라보기) 선택한 영역만(영역 잘라보기) 보여줄 수 있습니다.
+STR_6006    :{SMALLFONT}{BLACK}잘라 보기 기능을 이용해서 절단할 높이보다 아래에 있는 요소만 표시하거나(높이 잘라 보기) 선택한 영역만(영역 잘라 보기) 보여줄 수 있습니다.
 STR_6007    :절단할 높이
-STR_6008    :{SMALLFONT}{BLACK}클릭하면 높이 단위를 실제 높이<->유닛 단위로 변경할 수 있습니다.
+STR_6008    :{SMALLFONT}{BLACK}클릭하면 높이 단위를 실제 높이↔유닛 단위로 변경할 수 있습니다.
 STR_6009    :{SMALLFONT}{BLACK}절단할 높이를 선택하세요.
 STR_6010    :{COMMA2DP32}m
 STR_6011    :{COMMA1DP16}ft
@@ -3688,14 +3560,14 @@ STR_6229    :{WINDOW_COLOUR_2}{STRINGID}: {STRINGID}
 STR_6230    :{STRINGID}:
 STR_6231    :{WINDOW_COLOUR_2}{STRINGID}: {MOVE_X}{185}{STRINGID}
 STR_6232    :얼리기
-STR_6233    :특정 높이 잘라 보기
+STR_6233    :잘라 보기
 STR_6234    :보도 관련 문제 하이라이트
 STR_6235    :서버 정보
 STR_6236    :플레이어
 STR_6237    :그룹
 STR_6238    :멀티플레이 설정
-STR_6239    :높이 잘라보기
-STR_6240    :영역 잘라보기
+STR_6239    :높이 잘라 보기
+STR_6240    :영역 잘라 보기
 STR_6241    :영역 선택
 STR_6242    :선택 초기화
 STR_6243    :{SMALLFONT}{BLACK}놀이기구를 재단장하여{NEWLINE}새 놀이기구로 만듭니다.
@@ -3732,7 +3604,7 @@ STR_6273    :음악
 STR_6274    :색상을 지정할 수 없습니다...
 STR_6275    :{WINDOW_COLOUR_2}정거장 스타일:
 STR_6276    :{RED}{STRINGID}의 손님이 올바르지 않은 놀이기구 종류나 운행 모드로 인해 끼었습니다.
-STR_6277    :{WINDOW_COLOUR_2}정거장 번호: {BLACK}{COMMA16}
+STR_6277    :{WINDOW_COLOUR_2}정거장 번호: {BLACK}{STRINGID}
 STR_6278    :자동 저장 개수
 STR_6279    :{SMALLFONT}{BLACK}보관되는 자동 저장 파일의 개수입니다.
 STR_6280    :{SMALLFONT}{BLACK}채팅

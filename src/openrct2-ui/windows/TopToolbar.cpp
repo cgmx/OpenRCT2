@@ -263,10 +263,10 @@ static rct_widget window_top_toolbar_widgets[] = {
 static void window_top_toolbar_mouseup(rct_window *w, rct_widgetindex widgetIndex);
 static void window_top_toolbar_mousedown(rct_window *w, rct_widgetindex widgetIndex, rct_widget* widget);
 static void window_top_toolbar_dropdown(rct_window *w, rct_widgetindex widgetIndex, int32_t dropdownIndex);
-static void window_top_toolbar_tool_update(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
-static void window_top_toolbar_tool_down(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
-static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
-static void window_top_toolbar_tool_up(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
+static void window_top_toolbar_tool_update(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords);
+static void window_top_toolbar_tool_down(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords);
+static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords);
+static void window_top_toolbar_tool_up(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoordsy);
 static void window_top_toolbar_tool_abort(rct_window *w, rct_widgetindex widgetIndex);
 static void window_top_toolbar_invalidate(rct_window *w);
 static void window_top_toolbar_paint(rct_window *w, rct_drawpixelinfo *dpi);
@@ -1345,7 +1345,9 @@ static void sub_6E1F34(
                 // If CTRL not pressed
                 if (!gSceneryCtrlPressed)
                 {
-                    screen_get_map_xy_quadrant(x, y, grid_x, grid_y, &cl);
+                    CoordsXY gridCoords = screen_get_map_xy_quadrant({ x, y }, &cl);
+                    *grid_x = gridCoords.x;
+                    *grid_y = gridCoords.y;
 
                     if (*grid_x == LOCATION_NULL)
                         return;
@@ -1375,8 +1377,14 @@ static void sub_6E1F34(
                 {
                     int16_t z = gSceneryCtrlPressZ;
 
-                    screen_get_map_xy_quadrant_with_z(x, y, z, grid_x, grid_y, &cl);
-
+                    auto mapCoords = screen_get_map_xy_quadrant_with_z({ x, y }, z, &cl);
+                    if (!mapCoords)
+                    {
+                        *grid_x = LOCATION_NULL;
+                        return;
+                    }
+                    *grid_x = mapCoords->x;
+                    *grid_y = mapCoords->y;
                     // If SHIFT pressed
                     if (gSceneryShiftPressed)
                     {
@@ -1454,8 +1462,9 @@ static void sub_6E1F34(
             else
             {
                 int16_t z = gSceneryCtrlPressZ;
-                screen_get_map_xy_with_z(x, y, z, grid_x, grid_y);
-
+                auto coords = screen_get_map_xy_with_z({ x, y }, z);
+                *grid_x = coords.x;
+                *grid_y = coords.y;
                 // If SHIFT pressed
                 if (gSceneryShiftPressed)
                 {
@@ -1522,7 +1531,9 @@ static void sub_6E1F34(
             // If CTRL not pressed
             if (!gSceneryCtrlPressed)
             {
-                screen_get_map_xy_side(x, y, grid_x, grid_y, &cl);
+                CoordsXY gridCoords = screen_get_map_xy_side({ x, y }, &cl);
+                *grid_x = gridCoords.x;
+                *grid_y = gridCoords.y;
 
                 if (*grid_x == LOCATION_NULL)
                     return;
@@ -1551,7 +1562,14 @@ static void sub_6E1F34(
             else
             {
                 int16_t z = gSceneryCtrlPressZ;
-                screen_get_map_xy_side_with_z(x, y, z, grid_x, grid_y, &cl);
+                auto mapCoords = screen_get_map_xy_side_with_z({ x, y }, z, &cl);
+                if (!mapCoords)
+                {
+                    *grid_x = LOCATION_NULL;
+                    return;
+                }
+                *grid_x = mapCoords->x;
+                *grid_y = mapCoords->y;
 
                 // If SHIFT pressed
                 if (gSceneryShiftPressed)
@@ -1581,7 +1599,9 @@ static void sub_6E1F34(
             // If CTRL not pressed
             if (!gSceneryCtrlPressed)
             {
-                sub_68A15E(x, y, grid_x, grid_y);
+                const CoordsXY mapCoords = sub_68A15E({ x, y });
+                *grid_x = mapCoords.x;
+                *grid_y = mapCoords.y;
 
                 if (*grid_x == LOCATION_NULL)
                     return;
@@ -1610,7 +1630,9 @@ static void sub_6E1F34(
             else
             {
                 int16_t z = gSceneryCtrlPressZ;
-                screen_get_map_xy_with_z(x, y, z, grid_x, grid_y);
+                auto coords = screen_get_map_xy_with_z({ x, y }, z);
+                *grid_x = coords.x;
+                *grid_y = coords.y;
 
                 // If SHIFT pressed
                 if (gSceneryShiftPressed)
@@ -1968,8 +1990,7 @@ static uint8_t top_toolbar_tool_update_land_paint(int16_t x, int16_t y)
     map_invalidate_selection_rect();
     gMapSelectFlags &= ~MAP_SELECT_FLAG_ENABLE;
 
-    LocationXY16 mapTile = {};
-    screen_get_map_xy(x, y, &mapTile.x, &mapTile.y, nullptr);
+    CoordsXY mapTile = screen_get_map_xy({ x, y }, nullptr);
 
     if (mapTile.x == LOCATION_NULL)
     {
@@ -2080,7 +2101,7 @@ static void top_toolbar_tool_update_land(int16_t x, int16_t y)
     }
 
     int16_t tool_size = gLandToolSize;
-    LocationXY16 mapTile;
+    CoordsXY mapTile;
     uint8_t side;
 
     gMapSelectFlags &= ~MAP_SELECT_FLAG_ENABLE;
@@ -2088,9 +2109,8 @@ static void top_toolbar_tool_update_land(int16_t x, int16_t y)
     {
         int32_t selectionType;
         // Get selection type and map coordinates from mouse x,y position
-        mapTile = { x, y };
-        screen_pos_to_map_pos(&mapTile.x, &mapTile.y, &selectionType);
-        screen_get_map_xy_side(x, y, &mapTile.x, &mapTile.y, &side);
+        screen_pos_to_map_pos({ x, y }, &selectionType);
+        mapTile = screen_get_map_xy_side({ x, y }, &side);
 
         if (mapTile.x == LOCATION_NULL)
         {
@@ -2167,7 +2187,7 @@ static void top_toolbar_tool_update_land(int16_t x, int16_t y)
     }
 
     // Get map coordinates and the side of the tile that is being hovered over
-    screen_get_map_xy_side(x, y, &mapTile.x, &mapTile.y, &side);
+    mapTile = screen_get_map_xy_side({ x, y }, &side);
 
     if (mapTile.x == LOCATION_NULL)
     {
@@ -2862,24 +2882,24 @@ static void top_toolbar_tool_update_scenery(int16_t x, int16_t y)
  *
  *  rct2: 0x0066CB25
  */
-static void window_top_toolbar_tool_update(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_top_toolbar_tool_update(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords)
 {
     switch (widgetIndex)
     {
         case WIDX_CLEAR_SCENERY:
-            top_toolbar_tool_update_scenery_clear(x, y);
+            top_toolbar_tool_update_scenery_clear(screenCoords.x, screenCoords.y);
             break;
         case WIDX_LAND:
             if (gLandPaintMode)
-                top_toolbar_tool_update_land_paint(x, y);
+                top_toolbar_tool_update_land_paint(screenCoords.x, screenCoords.y);
             else
-                top_toolbar_tool_update_land(x, y);
+                top_toolbar_tool_update_land(screenCoords.x, screenCoords.y);
             break;
         case WIDX_WATER:
-            top_toolbar_tool_update_water(x, y);
+            top_toolbar_tool_update_water(screenCoords.x, screenCoords.y);
             break;
         case WIDX_SCENERY:
-            top_toolbar_tool_update_scenery(x, y);
+            top_toolbar_tool_update_scenery(screenCoords.x, screenCoords.y);
             break;
     }
 }
@@ -2888,7 +2908,7 @@ static void window_top_toolbar_tool_update(rct_window* w, rct_widgetindex widget
  *
  *  rct2: 0x0066CB73
  */
-static void window_top_toolbar_tool_down(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_top_toolbar_tool_down(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords)
 {
     switch (widgetIndex)
     {
@@ -2919,7 +2939,7 @@ static void window_top_toolbar_tool_down(rct_window* w, rct_widgetindex widgetIn
             }
             break;
         case WIDX_SCENERY:
-            window_top_toolbar_scenery_tool_down(x, y, w, widgetIndex);
+            window_top_toolbar_scenery_tool_down(screenCoords.x, screenCoords.y, w, widgetIndex);
             break;
     }
 }
@@ -3091,7 +3111,7 @@ static void window_top_toolbar_water_tool_drag(int16_t x, int16_t y)
  *
  *  rct2: 0x0066CB4E
  */
-static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords)
 {
     switch (widgetIndex)
     {
@@ -3122,17 +3142,17 @@ static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIn
             }
             else
             {
-                window_top_toolbar_land_tool_drag(x, y);
+                window_top_toolbar_land_tool_drag(screenCoords.x, screenCoords.y);
             }
             break;
         case WIDX_WATER:
-            window_top_toolbar_water_tool_drag(x, y);
+            window_top_toolbar_water_tool_drag(screenCoords.x, screenCoords.y);
             break;
         case WIDX_SCENERY:
             if (gWindowSceneryPaintEnabled & 1)
-                window_top_toolbar_scenery_tool_down(x, y, w, widgetIndex);
+                window_top_toolbar_scenery_tool_down(screenCoords.x, screenCoords.y, w, widgetIndex);
             if (gWindowSceneryEyedropperEnabled)
-                window_top_toolbar_scenery_tool_down(x, y, w, widgetIndex);
+                window_top_toolbar_scenery_tool_down(screenCoords.x, screenCoords.y, w, widgetIndex);
             break;
     }
 }
@@ -3141,7 +3161,7 @@ static void window_top_toolbar_tool_drag(rct_window* w, rct_widgetindex widgetIn
  *
  *  rct2: 0x0066CC5B
  */
-static void window_top_toolbar_tool_up(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_top_toolbar_tool_up(rct_window* w, rct_widgetindex widgetIndex, ScreenCoordsXY screenCoords)
 {
     switch (widgetIndex)
     {

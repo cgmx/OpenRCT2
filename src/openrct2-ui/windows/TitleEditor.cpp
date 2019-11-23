@@ -47,8 +47,8 @@ static void window_title_editor_mousedown(rct_window * w, rct_widgetindex widget
 static void window_title_editor_dropdown(rct_window * w, rct_widgetindex widgetIndex, int32_t dropdownIndex);
 static void window_title_editor_update(rct_window * w);
 static void window_title_editor_scrollgetsize(rct_window * w, int32_t scrollIndex, int32_t * width, int32_t * height);
-static void window_title_editor_scrollmousedown(rct_window * w, int32_t scrollIndex, int32_t x, int32_t y);
-static void window_title_editor_scrollmouseover(rct_window * w, int32_t scrollIndex, int32_t x, int32_t y);
+static void window_title_editor_scrollmousedown(rct_window * w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
+static void window_title_editor_scrollmouseover(rct_window * w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
 static void window_title_editor_textinput(rct_window * w, rct_widgetindex widgetIndex, char * text);
 static void window_title_editor_invalidate(rct_window * w);
 static void window_title_editor_paint(rct_window * w, rct_drawpixelinfo * dpi);
@@ -135,15 +135,15 @@ enum WINDOW_TITLE_EDITOR_WIDGET_IDX {
 
 // Increase BW if certain languages do not fit
 // BW should be a multiple of 4
-#define WW 320
-#define WH 270
-#define BX 8
-#define BW 72
-#define BY 52
-#define BH 63
-#define BS 18
-#define SCROLL_WIDTH 350
-#define WH2 127
+constexpr int32_t WW = 320;
+constexpr int32_t WH = 270;
+constexpr int32_t BX = 8;
+constexpr int32_t BW = 72;
+constexpr int32_t BY = 52;
+constexpr int32_t BH = 63;
+constexpr int32_t BS = 18;
+constexpr int32_t SCROLL_WIDTH = 350;
+constexpr int32_t WH2 = 127;
 
 static rct_widget window_title_editor_widgets[] = {
     { WWT_FRAME,            0,  0,      WW-1,   0,      WH2-1,  0xFFFFFFFF,             STR_NONE },                             // panel / background
@@ -616,9 +616,9 @@ static void window_title_editor_scrollgetsize(rct_window* w, int32_t scrollIndex
     *width = SCROLL_WIDTH;
 }
 
-static void window_title_editor_scrollmousedown(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+static void window_title_editor_scrollmousedown(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
-    int32_t index = y / SCROLLABLE_ROW_HEIGHT;
+    int32_t index = screenCoords.y / SCROLLABLE_ROW_HEIGHT;
     w->selected_list_item = -1;
     switch (w->selected_tab)
     {
@@ -639,9 +639,9 @@ static void window_title_editor_scrollmousedown(rct_window* w, int32_t scrollInd
     }
 }
 
-static void window_title_editor_scrollmouseover(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+static void window_title_editor_scrollmouseover(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
-    int32_t index = y / SCROLLABLE_ROW_HEIGHT;
+    int32_t index = screenCoords.y / SCROLLABLE_ROW_HEIGHT;
     switch (w->selected_tab)
     {
         case WINDOW_TITLE_EDITOR_TAB_SAVES:

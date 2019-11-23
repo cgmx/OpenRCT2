@@ -263,13 +263,12 @@ enum WINDOW_OBJECT_LOAD_ERROR_WIDGET_IDX {
     WIDX_DOWNLOAD_ALL
 };
 
-#define WW 450
-#define WH 400
-#define WW_LESS_PADDING (WW - 5)
-#define NAME_COL_LEFT 4
-#define SOURCE_COL_LEFT ((WW_LESS_PADDING / 4) + 1)
-#define TYPE_COL_LEFT (5 * WW_LESS_PADDING / 8 + 1)
-#define LIST_ITEM_HEIGHT 10
+constexpr int32_t WW = 450;
+constexpr int32_t WH = 400;
+constexpr int32_t WW_LESS_PADDING = WW - 5;
+constexpr int32_t NAME_COL_LEFT = 4;
+constexpr int32_t SOURCE_COL_LEFT = (WW_LESS_PADDING / 4) + 1;
+constexpr int32_t TYPE_COL_LEFT = 5 * WW_LESS_PADDING / 8 + 1;
 
 static rct_widget window_object_load_error_widgets[] = {
     { WWT_FRAME,             0, 0,               WW - 1,                0,          WH - 1,     STR_NONE,                       STR_NONE },                // Background
@@ -292,8 +291,8 @@ static void window_object_load_error_close(rct_window *w);
 static void window_object_load_error_update(rct_window *w);
 static void window_object_load_error_mouseup(rct_window *w, rct_widgetindex widgetIndex);
 static void window_object_load_error_scrollgetsize(rct_window *w, int32_t scrollIndex, int32_t *width, int32_t *height);
-static void window_object_load_error_scrollmouseover(rct_window *w, int32_t scrollIndex, int32_t x, int32_t y);
-static void window_object_load_error_scrollmousedown(rct_window *w, int32_t scrollIndex, int32_t x, int32_t y);
+static void window_object_load_error_scrollmouseover(rct_window *w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
+static void window_object_load_error_scrollmousedown(rct_window *w, int32_t scrollIndex, ScreenCoordsXY screenCoords);
 static void window_object_load_error_paint(rct_window *w, rct_drawpixelinfo *dpi);
 static void window_object_load_error_scrollpaint(rct_window *w, rct_drawpixelinfo *dpi, int32_t scrollIndex);
 #ifndef DISABLE_HTTP
@@ -520,11 +519,11 @@ static void window_object_load_error_mouseup(rct_window* w, rct_widgetindex widg
     }
 }
 
-static void window_object_load_error_scrollmouseover(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+static void window_object_load_error_scrollmouseover(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
     // Highlight item that the cursor is over, or remove highlighting if none
     int32_t selected_item;
-    selected_item = y / SCROLLABLE_ROW_HEIGHT;
+    selected_item = screenCoords.y / SCROLLABLE_ROW_HEIGHT;
     if (selected_item < 0 || selected_item >= w->no_list_items)
         highlighted_index = -1;
     else
@@ -546,10 +545,10 @@ static void window_object_load_error_select_element_from_list(rct_window* w, int
     widget_invalidate(w, WIDX_SCROLL);
 }
 
-static void window_object_load_error_scrollmousedown(rct_window* w, int32_t scrollIndex, int32_t x, int32_t y)
+static void window_object_load_error_scrollmousedown(rct_window* w, int32_t scrollIndex, ScreenCoordsXY screenCoords)
 {
     int32_t selected_item;
-    selected_item = y / SCROLLABLE_ROW_HEIGHT;
+    selected_item = screenCoords.y / SCROLLABLE_ROW_HEIGHT;
     window_object_load_error_select_element_from_list(w, selected_item);
 }
 

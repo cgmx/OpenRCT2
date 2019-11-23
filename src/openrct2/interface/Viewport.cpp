@@ -43,7 +43,6 @@ uint8_t gShowConstuctionRightsRefCount;
 rct_viewport g_viewport_list[MAX_VIEWPORT_COUNT];
 rct_viewport* g_music_tracking_viewport;
 
-static TileElement* _interaction_element = nullptr;
 static std::unique_ptr<JobPool> _paintJobs;
 
 int16_t gSavedViewX;
@@ -56,12 +55,19 @@ uint8_t gCurrentRotation;
 
 static uint32_t _currentImageType;
 
-static rct_drawpixelinfo _viewportDpi1;
-static rct_drawpixelinfo _viewportDpi2;
-static uint8_t _interactionSpriteType;
-static int16_t _interactionMapX;
-static int16_t _interactionMapY;
-static uint16_t _interactionFlags;
+struct InteractionInfo
+{
+    InteractionInfo() = default;
+    InteractionInfo(const paint_struct* ps)
+        : Loc(ps->map_x, ps->map_y)
+        , Element(ps->tileElement)
+        , SpriteType(ps->sprite_type)
+    {
+    }
+    CoordsXY Loc;
+    TileElement* Element = nullptr;
+    uint8_t SpriteType;
+};
 
 static void viewport_paint_weather_gloom(rct_drawpixelinfo* dpi);
 
@@ -219,21 +225,20 @@ void viewport_adjust_for_map_height(int16_t* x, int16_t* y, int16_t* z)
     int16_t height = 0;
 
     uint32_t rotation = get_current_rotation();
-    LocationXY16 pos;
+    CoordsXY pos{};
     for (int32_t i = 0; i < 6; i++)
     {
         pos = viewport_coord_to_map_coord(start_x, start_y, height);
-        height = tile_element_height({ (0xFFFF) & pos.x, (0xFFFF) & pos.y });
+        height = tile_element_height(pos);
 
         // HACK: This is to prevent the x and y values being set to values outside
         // of the map. This can happen when the height is larger than the map size.
         int16_t max = gMapSizeMinus2;
         if (pos.x > max && pos.y > max)
         {
-            int32_t x_corr[] = { -1, 1, 1, -1 };
-            int32_t y_corr[] = { -1, -1, 1, 1 };
-            pos.x += x_corr[rotation] * height;
-            pos.y += y_corr[rotation] * height;
+            const CoordsXY corr[] = { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } };
+            pos.x += corr[rotation].x * height;
+            pos.y += corr[rotation].y * height;
         }
     }
 
@@ -557,9 +562,8 @@ void viewport_update_position(rct_window* window)
 
     int16_t x = window->saved_view_x + viewport->view_width / 2;
     int16_t y = window->saved_view_y + viewport->view_height / 2;
-    LocationXY16 mapCoord;
 
-    mapCoord = viewport_coord_to_map_coord(x, y, 0);
+    auto mapCoord = viewport_coord_to_map_coord(x, y, 0);
 
     // Clamp to the map minimum value
     int32_t at_map_edge = 0;
@@ -997,23 +1001,23 @@ static void viewport_paint_weather_gloom(rct_drawpixelinfo* dpi)
  *
  *  rct2: 0x0068958D
  */
-void screen_pos_to_map_pos(int16_t* x, int16_t* y, int32_t* direction)
+CoordsXY screen_pos_to_map_pos(ScreenCoordsXY screenCoords, int32_t* direction)
 {
-    screen_get_map_xy(*x, *y, x, y, nullptr);
-    if (*x == LOCATION_NULL)
-        return;
+    CoordsXY mapCoords = screen_get_map_xy(screenCoords, nullptr);
+    if (mapCoords.x == LOCATION_NULL)
+        return {};
 
     int32_t my_direction;
-    int32_t dist_from_centre_x = abs(*x % 32);
-    int32_t dist_from_centre_y = abs(*y % 32);
+    int32_t dist_from_centre_x = abs(mapCoords.x % 32);
+    int32_t dist_from_centre_y = abs(mapCoords.y % 32);
     if (dist_from_centre_x > 8 && dist_from_centre_x < 24 && dist_from_centre_y > 8 && dist_from_centre_y < 24)
     {
         my_direction = 4;
     }
     else
     {
-        int16_t mod_x = *x & 0x1F;
-        int16_t mod_y = *y & 0x1F;
+        int16_t mod_x = mapCoords.x & 0x1F;
+        int16_t mod_y = mapCoords.y & 0x1F;
         if (mod_x <= 16)
         {
             if (mod_y < 16)
@@ -1038,23 +1042,24 @@ void screen_pos_to_map_pos(int16_t* x, int16_t* y, int32_t* direction)
         }
     }
 
-    *x = *x & ~0x1F;
-    *y = *y & ~0x1F;
+    mapCoords.x = mapCoords.x & ~0x1F;
+    mapCoords.y = mapCoords.y & ~0x1F;
     if (direction != nullptr)
         *direction = my_direction;
+    return mapCoords;
 }
 
-LocationXY16 screen_coord_to_viewport_coord(rct_viewport* viewport, uint16_t x, uint16_t y)
+LocationXY16 screen_coord_to_viewport_coord(rct_viewport* viewport, ScreenCoordsXY screenCoords)
 {
     LocationXY16 ret;
-    ret.x = ((x - viewport->x) << viewport->zoom) + viewport->view_x;
-    ret.y = ((y - viewport->y) << viewport->zoom) + viewport->view_y;
+    ret.x = ((screenCoords.x - viewport->x) << viewport->zoom) + viewport->view_x;
+    ret.y = ((screenCoords.y - viewport->y) << viewport->zoom) + viewport->view_y;
     return ret;
 }
 
-LocationXY16 viewport_coord_to_map_coord(int32_t x, int32_t y, int32_t z)
+CoordsXY viewport_coord_to_map_coord(int32_t x, int32_t y, int32_t z)
 {
-    LocationXY16 ret = {};
+    CoordsXY ret{};
     switch (get_current_rotation())
     {
         case 0:
@@ -1253,16 +1258,14 @@ void viewport_set_visibility(uint8_t mode)
 }
 
 /**
- * Stores some info about the element pointed at, if requested for this particular type through the interaction mask.
- * Originally checked 0x0141F569 at start
- *  rct2: 0x00688697
+ * Checks if a paint_struct sprite type is in the filter mask.
  */
-static void store_interaction_info(paint_struct* ps)
+static bool PSSpriteTypeIsInFilter(paint_struct* ps, uint16_t filter)
 {
     if (ps->sprite_type == VIEWPORT_INTERACTION_ITEM_NONE
         || ps->sprite_type == 11 // 11 as a type seems to not exist, maybe part of the typo mentioned later on.
         || ps->sprite_type > VIEWPORT_INTERACTION_ITEM_BANNER)
-        return;
+        return false;
 
     uint16_t mask;
     if (ps->sprite_type == VIEWPORT_INTERACTION_ITEM_BANNER)
@@ -1271,13 +1274,12 @@ static void store_interaction_info(paint_struct* ps)
     else
         mask = 1 << (ps->sprite_type - 1);
 
-    if (!(_interactionFlags & mask))
+    if (filter & mask)
     {
-        _interactionSpriteType = ps->sprite_type;
-        _interactionMapX = ps->map_x;
-        _interactionMapY = ps->map_y;
-        _interaction_element = ps->tileElement;
+        return false;
     }
+
+    return true;
 }
 
 /**
@@ -1571,10 +1573,11 @@ static bool is_sprite_interacted_with(rct_drawpixelinfo* dpi, int32_t imageId, i
  *
  *  rct2: 0x0068862C
  */
-static void set_interaction_info_from_paint_session(paint_session* session)
+static InteractionInfo set_interaction_info_from_paint_session(paint_session* session, uint16_t filter)
 {
     paint_struct* ps = &session->PaintHead;
     rct_drawpixelinfo* dpi = &session->DPI;
+    InteractionInfo info{};
 
     while ((ps = ps->next_quadrant_ps) != nullptr)
     {
@@ -1585,7 +1588,10 @@ static void set_interaction_info_from_paint_session(paint_session* session)
             ps = next_ps;
             if (is_sprite_interacted_with(dpi, ps->image_id, ps->x, ps->y))
             {
-                store_interaction_info(ps);
+                if (PSSpriteTypeIsInFilter(ps, filter))
+                {
+                    info = { ps };
+                }
             }
             next_ps = ps->children;
         }
@@ -1595,12 +1601,16 @@ static void set_interaction_info_from_paint_session(paint_session* session)
             if (is_sprite_interacted_with(
                     dpi, attached_ps->image_id, (attached_ps->x + ps->x) & 0xFFFF, (attached_ps->y + ps->y) & 0xFFFF))
             {
-                store_interaction_info(ps);
+                if (PSSpriteTypeIsInFilter(ps, filter))
+                {
+                    info = { ps };
+                }
             }
         }
 
         ps = old_ps;
     }
+    return info;
 }
 
 /**
@@ -1616,59 +1626,69 @@ static void set_interaction_info_from_paint_session(paint_session* session)
  * viewport: edi
  */
 void get_map_coordinates_from_pos(
+    ScreenCoordsXY screenCoords, int32_t flags, CoordsXY& mapCoords, int32_t* interactionType, TileElement** tileElement,
+    rct_viewport** viewport)
+{
+    rct_window* window = window_find_from_point(screenCoords);
+    get_map_coordinates_from_pos_window(window, screenCoords, flags, mapCoords, interactionType, tileElement, viewport);
+}
+
+void get_map_coordinates_from_pos(
     int32_t screenX, int32_t screenY, int32_t flags, int16_t* x, int16_t* y, int32_t* interactionType,
     TileElement** tileElement, rct_viewport** viewport)
 {
-    rct_window* window = window_find_from_point(ScreenCoordsXY(screenX, screenY));
-    get_map_coordinates_from_pos_window(window, screenX, screenY, flags, x, y, interactionType, tileElement, viewport);
+    ScreenCoordsXY screenCoords{ screenX, screenY };
+    CoordsXY mapCoords;
+    get_map_coordinates_from_pos(screenCoords, flags, mapCoords, interactionType, tileElement, viewport);
+
+    if (x != nullptr)
+        *x = mapCoords.x;
+    if (y != nullptr)
+        *y = mapCoords.y;
 }
 
 void get_map_coordinates_from_pos_window(
-    rct_window* window, int32_t screenX, int32_t screenY, int32_t flags, int16_t* x, int16_t* y, int32_t* interactionType,
+    rct_window* window, ScreenCoordsXY screenCoords, int32_t flags, CoordsXY& mapCoords, int32_t* interactionType,
     TileElement** tileElement, rct_viewport** viewport)
 {
-    _interactionFlags = flags & 0xFFFF;
-    _interactionSpriteType = 0;
+    InteractionInfo info{};
     if (window != nullptr && window->viewport != nullptr)
     {
         rct_viewport* myviewport = window->viewport;
-        screenX -= (int32_t)myviewport->x;
-        screenY -= (int32_t)myviewport->y;
-        if (screenX >= 0 && screenX < (int32_t)myviewport->width && screenY >= 0 && screenY < (int32_t)myviewport->height)
+        screenCoords.x -= (int32_t)myviewport->x;
+        screenCoords.y -= (int32_t)myviewport->y;
+        if (screenCoords.x >= 0 && screenCoords.x < (int32_t)myviewport->width && screenCoords.y >= 0
+            && screenCoords.y < (int32_t)myviewport->height)
         {
-            screenX <<= myviewport->zoom;
-            screenY <<= myviewport->zoom;
-            screenX += (int32_t)myviewport->view_x;
-            screenY += (int32_t)myviewport->view_y;
-            _viewportDpi1.zoom_level = myviewport->zoom;
-            screenX &= (0xFFFF << myviewport->zoom) & 0xFFFF;
-            screenY &= (0xFFFF << myviewport->zoom) & 0xFFFF;
-            _viewportDpi1.x = screenX;
-            _viewportDpi1.y = screenY;
-            rct_drawpixelinfo* dpi = &_viewportDpi2;
-            dpi->y = _viewportDpi1.y;
-            dpi->height = 1;
-            dpi->zoom_level = _viewportDpi1.zoom_level;
-            dpi->x = _viewportDpi1.x;
-            dpi->width = 1;
+            screenCoords.x <<= myviewport->zoom;
+            screenCoords.y <<= myviewport->zoom;
+            screenCoords.x += (int32_t)myviewport->view_x;
+            screenCoords.y += (int32_t)myviewport->view_y;
+            screenCoords.x &= (0xFFFF << myviewport->zoom) & 0xFFFF;
+            screenCoords.y &= (0xFFFF << myviewport->zoom) & 0xFFFF;
+            rct_drawpixelinfo dpi;
+            dpi.x = screenCoords.x;
+            dpi.y = screenCoords.y;
+            dpi.height = 1;
+            dpi.zoom_level = myviewport->zoom;
+            dpi.width = 1;
 
-            paint_session* session = paint_session_alloc(dpi, myviewport->flags);
+            paint_session* session = paint_session_alloc(&dpi, myviewport->flags);
             paint_session_generate(session);
             paint_session_arrange(session);
-            set_interaction_info_from_paint_session(session);
+            info = set_interaction_info_from_paint_session(session, flags & 0xFFFF);
             paint_session_free(session);
         }
         if (viewport != nullptr)
             *viewport = myviewport;
     }
     if (interactionType != nullptr)
-        *interactionType = _interactionSpriteType;
-    if (x != nullptr)
-        *x = _interactionMapX;
-    if (y != nullptr)
-        *y = _interactionMapY;
+        *interactionType = info.SpriteType;
+
+    mapCoords = info.Loc;
+
     if (tileElement != nullptr)
-        *tileElement = _interaction_element;
+        *tileElement = info.Element;
 }
 
 /**
@@ -1722,9 +1742,9 @@ void viewport_invalidate(rct_viewport* viewport, int32_t left, int32_t top, int3
     }
 }
 
-static rct_viewport* viewport_find_from_point(int32_t screenX, int32_t screenY)
+static rct_viewport* viewport_find_from_point(ScreenCoordsXY screenCoords)
 {
-    rct_window* w = window_find_from_point(ScreenCoordsXY(screenX, screenY));
+    rct_window* w = window_find_from_point(screenCoords);
     if (w == nullptr)
         return nullptr;
 
@@ -1732,9 +1752,9 @@ static rct_viewport* viewport_find_from_point(int32_t screenX, int32_t screenY)
     if (viewport == nullptr)
         return nullptr;
 
-    if (screenX < viewport->x || screenY < viewport->y)
+    if (screenCoords.x < viewport->x || screenCoords.y < viewport->y)
         return nullptr;
-    if (screenX >= viewport->x + viewport->width || screenY >= viewport->y + viewport->height)
+    if (screenCoords.x >= viewport->x + viewport->width || screenCoords.y >= viewport->y + viewport->height)
         return nullptr;
 
     return viewport;
@@ -1752,123 +1772,113 @@ static rct_viewport* viewport_find_from_point(int32_t screenX, int32_t screenY)
  *      tile_element: edx ?
  *      viewport: edi
  */
-void screen_get_map_xy(int32_t screenX, int32_t screenY, int16_t* x, int16_t* y, rct_viewport** viewport)
+CoordsXY screen_get_map_xy(ScreenCoordsXY screenCoords, rct_viewport** viewport)
 {
     int16_t my_x, my_y;
     int32_t interactionType;
     rct_viewport* myViewport = nullptr;
     get_map_coordinates_from_pos(
-        screenX, screenY, VIEWPORT_INTERACTION_MASK_TERRAIN, &my_x, &my_y, &interactionType, nullptr, &myViewport);
+        screenCoords.x, screenCoords.y, VIEWPORT_INTERACTION_MASK_TERRAIN, &my_x, &my_y, &interactionType, nullptr,
+        &myViewport);
     if (interactionType == VIEWPORT_INTERACTION_ITEM_NONE)
     {
-        *x = LOCATION_NULL;
-        return;
+        return { LOCATION_NULL, 0 };
     }
 
-    LocationXY16 start_vp_pos = screen_coord_to_viewport_coord(myViewport, screenX, screenY);
-    LocationXY16 map_pos = { (int16_t)(my_x + 16), (int16_t)(my_y + 16) };
+    LocationXY16 start_vp_pos = screen_coord_to_viewport_coord(myViewport, screenCoords);
+    CoordsXY map_pos = { my_x + 16, my_y + 16 };
 
     for (int32_t i = 0; i < 5; i++)
     {
-        int32_t z = tile_element_height({ map_pos.x, map_pos.y });
+        int32_t z = tile_element_height(map_pos);
         map_pos = viewport_coord_to_map_coord(start_vp_pos.x, start_vp_pos.y, z);
         map_pos.x = std::clamp<int16_t>(map_pos.x, my_x, my_x + 31);
         map_pos.y = std::clamp<int16_t>(map_pos.y, my_y, my_y + 31);
     }
 
-    *x = map_pos.x;
-    *y = map_pos.y;
-
     if (viewport != nullptr)
         *viewport = myViewport;
+
+    return map_pos;
 }
 
 /**
  *
  *  rct2: 0x006894D4
  */
-void screen_get_map_xy_with_z(int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY)
+CoordsXY screen_get_map_xy_with_z(ScreenCoordsXY screenCoords, int16_t z)
 {
-    rct_viewport* viewport = viewport_find_from_point(screenX, screenY);
+    CoordsXY ret{ LOCATION_NULL, 0 };
+    rct_viewport* viewport = viewport_find_from_point(screenCoords);
     if (viewport == nullptr)
     {
-        *mapX = LOCATION_NULL;
-        return;
+        return ret;
     }
 
-    screenX = viewport->view_x + ((screenX - viewport->x) << viewport->zoom);
-    screenY = viewport->view_y + ((screenY - viewport->y) << viewport->zoom);
-
-    LocationXY16 mapPosition = viewport_coord_to_map_coord(screenX, screenY + z, 0);
-    if (mapPosition.x < 0 || mapPosition.x >= (256 * 32) || mapPosition.y < 0 || mapPosition.y > (256 * 32))
+    auto vpCoords = screen_coord_to_viewport_coord(viewport, screenCoords);
+    auto mapPosition = viewport_coord_to_map_coord(vpCoords.x, vpCoords.y, z);
+    if (!map_is_location_valid(mapPosition))
     {
-        *mapX = LOCATION_NULL;
-        return;
+        return ret;
     }
 
-    *mapX = mapPosition.x;
-    *mapY = mapPosition.y;
+    return mapPosition;
 }
 
 /**
  *
  *  rct2: 0x00689604
  */
-void screen_get_map_xy_quadrant(int16_t screenX, int16_t screenY, int16_t* mapX, int16_t* mapY, uint8_t* quadrant)
+CoordsXY screen_get_map_xy_quadrant(ScreenCoordsXY screenCoords, uint8_t* quadrant)
 {
-    screen_get_map_xy(screenX, screenY, mapX, mapY, nullptr);
-    if (*mapX == LOCATION_NULL)
-        return;
+    CoordsXY mapCoords = screen_get_map_xy(screenCoords, nullptr);
+    if (mapCoords.x == LOCATION_NULL)
+        return mapCoords;
 
-    *quadrant = map_get_tile_quadrant(*mapX, *mapY);
-    *mapX = floor2(*mapX, 32);
-    *mapY = floor2(*mapY, 32);
+    *quadrant = map_get_tile_quadrant(mapCoords.x, mapCoords.y);
+    return { floor2(mapCoords.x, 32), floor2(mapCoords.y, 32) };
 }
 
 /**
  *
  *  rct2: 0x0068964B
  */
-void screen_get_map_xy_quadrant_with_z(
-    int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY, uint8_t* quadrant)
+std::optional<CoordsXY> screen_get_map_xy_quadrant_with_z(ScreenCoordsXY screenCoords, int16_t z, uint8_t* quadrant)
 {
-    screen_get_map_xy_with_z(screenX, screenY, z, mapX, mapY);
-    if (*mapX == LOCATION_NULL)
-        return;
+    auto mapCoords = screen_get_map_xy_with_z(screenCoords, z);
+    if (mapCoords.x == LOCATION_NULL)
+        return std::nullopt;
 
-    *quadrant = map_get_tile_quadrant(*mapX, *mapY);
-    *mapX = floor2(*mapX, 32);
-    *mapY = floor2(*mapY, 32);
+    *quadrant = map_get_tile_quadrant(mapCoords.x, mapCoords.y);
+    return CoordsXY(floor2(mapCoords.x, 32), floor2(mapCoords.y, 32));
 }
 
 /**
  *
  *  rct2: 0x00689692
  */
-void screen_get_map_xy_side(int16_t screenX, int16_t screenY, int16_t* mapX, int16_t* mapY, uint8_t* side)
+CoordsXY screen_get_map_xy_side(ScreenCoordsXY screenCoords, uint8_t* side)
 {
-    screen_get_map_xy(screenX, screenY, mapX, mapY, nullptr);
-    if (*mapX == LOCATION_NULL)
-        return;
+    CoordsXY mapCoords = screen_get_map_xy(screenCoords, nullptr);
+    if (mapCoords.x == LOCATION_NULL)
+        return mapCoords;
 
-    *side = map_get_tile_side(*mapX, *mapY);
-    *mapX = floor2(*mapX, 32);
-    *mapY = floor2(*mapY, 32);
+    *side = map_get_tile_side(mapCoords.x, mapCoords.y);
+    return { floor2(mapCoords.x, 32), floor2(mapCoords.y, 32) };
 }
 
 /**
  *
  *  rct2: 0x006896DC
  */
-void screen_get_map_xy_side_with_z(int16_t screenX, int16_t screenY, int16_t z, int16_t* mapX, int16_t* mapY, uint8_t* side)
+std::optional<CoordsXY> screen_get_map_xy_side_with_z(ScreenCoordsXY screenCoords, int16_t z, uint8_t* side)
 {
-    screen_get_map_xy_with_z(screenX, screenY, z, mapX, mapY);
-    if (*mapX == LOCATION_NULL)
-        return;
+    auto mapCoords = screen_get_map_xy_with_z(screenCoords, z);
+    if (mapCoords.x == LOCATION_NULL)
+        return std::nullopt;
 
-    *side = map_get_tile_side(*mapX, *mapY);
-    *mapX = floor2(*mapX, 32);
-    *mapY = floor2(*mapY, 32);
+    *side = map_get_tile_side(mapCoords.x, mapCoords.y);
+    return CoordsXY(floor2(mapCoords.x, 32), floor2(mapCoords.y, 32));
 }
 
 /**
